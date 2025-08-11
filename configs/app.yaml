@@ -1,0 +1,64 @@
+# Application configuration file
+# This file contains default configuration values
+# Environment variables will override these values
+
+server:
+  port: "8080"
+  host: "0.0.0.0"
+  read_timeout: 30
+  write_timeout: 30
+  shutdown_timeout: 30
+
+database:
+  mongo_uri: "mongodb://localhost:27017"
+  database: "ai_government_consultant"
+  max_pool_size: 100
+  connection_timeout: 10
+  socket_timeout: 30
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: ""
+  db: 0
+  max_retries: 3
+  pool_size: 10
+
+ai:
+  llm_provider: "gemini"
+  llm_api_key: ""
+  embedding_model: "text-embedding-004"
+  max_tokens: 4096
+  temperature: 0.7
+  timeout: 60
+
+security:
+  jwt_secret: ""
+  jwt_expiry: 3600  # 1 hour
+  refresh_token_expiry: 604800  # 7 days
+  encryption_key: ""
+  tls_cert_path: ""
+  tls_key_path: ""
+  bcrypt_cost: 12
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+  max_size: 100  # MB
+  max_backups: 5
+  max_age: 30  # days
+
+features:
+  document_processing: true
+  ai_consultation: true
+  knowledge_management: true
+  audit_logging: true
+  vector_search: true
+
+limits:
+  max_document_size: 52428800  # 50MB
+  max_documents_per_user: 1000
+  consultation_rate_limit: 100  # per hour
+  max_consultation_history: 10000
+  max_concurrent_requests: 100
