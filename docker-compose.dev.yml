@@ -1,34 +1,60 @@
 version: '3.8'
 
-# Development override for docker-compose.yml
+# Development overrides for easier access and debugging
 services:
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    volumes:
-      - .:/app
-      - /app/vendor
     environment:
       - LOG_LEVEL=debug
-      - GIN_MODE=debug
-    command: ["air", "-c", ".air.toml"]
+      - LOG_FORMAT=text
+      - JWT_ACCESS_SECRET=dev-access-secret-change-in-production
+      - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
+    volumes:
+      # Mount source code for hot reloading (if using air or similar)
+      - .:/app
+    ports:
+      - "8080:8080"
+      - "2345:2345"  # Delve debugger port
 
   mongodb:
+    # Allow external access for development tools
     ports:
       - "27017:27017"
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
-      - MONGO_INITDB_ROOT_PASSWORD=password
+      - MONGO_INITDB_ROOT_PASSWORD=devpassword
+    command: >
+      mongod 
+      --auth 
+      --bind_ip_all 
+      --port 27017
+      --logpath /var/log/mongodb/mongod.log
+      --logappend
 
   redis:
+    # Allow external access for development tools
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass devpassword
+      --bind 0.0.0.0
+      --protected-mode no
+      --port 6379
 
   # Enable development tools
   mongo-express:
-    profiles: []
+    environment:
+      - ME_CONFIG_MONGODB_ADMINUSERNAME=admin
+      - ME_CONFIG_MONGODB_ADMINPASSWORD=devpassword
+      - ME_CONFIG_MONGODB_URL=mongodb://admin:devpassword@mongodb:27017/
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin
+    profiles:
+      - dev
 
   redis-commander:
-    profiles: []
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:devpassword
+    profiles:
+      - dev

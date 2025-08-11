@@ -36,8 +36,11 @@ services:
   # MongoDB database
   mongodb:
     image: mongo:7.0
+    # SECURITY: Only expose to localhost for production
+    # For development, you can use "27017:27017" to allow external access
+    # For production, use "127.0.0.1:27017:27017" to restrict to localhost only
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"  # Restrict to localhost only
     environment:
       - MONGO_INITDB_ROOT_USERNAME=admin
       - MONGO_INITDB_ROOT_PASSWORD=password
@@ -48,6 +51,13 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    command: >
+      mongod 
+      --auth 
+      --bind_ip_all 
+      --port 27017
+      --logpath /var/log/mongodb/mongod.log
+      --logappend
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
@@ -58,16 +68,25 @@ services:
   # Redis cache
   redis:
     image: redis:7.2-alpine
+    # SECURITY: Only expose to localhost for production
+    # For development, you can use "6379:6379" to allow external access
+    # For production, use "127.0.0.1:6379:6379" to restrict to localhost only
     ports:
-      - "6379:6379"
-    command: redis-server --appendonly yes --requirepass password
+      - "127.0.0.1:6379:6379"  # Restrict to localhost only
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass password
+      --bind 0.0.0.0
+      --protected-mode yes
+      --port 6379
     volumes:
       - redis_data:/data
     networks:
       - app-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      test: ["CMD", "redis-cli", "-a", "password", "ping"]
       interval: 30s
       timeout: 10s
       retries: 3

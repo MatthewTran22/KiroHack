@@ -1,0 +1,83 @@
+version: '3.8'
+
+# Production overrides for enhanced security
+services:
+  app:
+    environment:
+      - LOG_LEVEL=warn
+      - LOG_FORMAT=json
+      # Use environment variables for secrets in production
+      - JWT_ACCESS_SECRET=${JWT_ACCESS_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - MONGO_URI=mongodb://app_user:${MONGO_APP_PASSWORD}@mongodb:27017/ai_government_consultant?authSource=ai_government_consultant
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  mongodb:
+    # Remove external port exposure in production
+    ports: []
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      - MONGO_INITDB_DATABASE=ai_government_consultant
+    command: >
+      mongod 
+      --auth 
+      --bind_ip 0.0.0.0
+      --port 27017
+      --logpath /var/log/mongodb/mongod.log
+      --logappend
+      --logRotate reopen
+      --slowms 100
+      --profile 1
+      --storageEngine wiredTiger
+      --wiredTigerCacheSizeGB 0.5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 1G
+
+  redis:
+    # Remove external port exposure in production
+    ports: []
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass ${REDIS_PASSWORD}
+      --bind 0.0.0.0
+      --protected-mode yes
+      --port 6379
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 900 1
+      --save 300 10
+      --save 60 10000
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # Remove development tools in production
+  mongo-express:
+    profiles:
+      - never
+
+  redis-commander:
+    profiles:
+      - never
