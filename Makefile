@@ -4,7 +4,7 @@
 BINARY_NAME=ai-government-consultant
 DOCKER_IMAGE=ai-government-consultant
 DOCKER_TAG=latest
-GO_VERSION=1.21
+GO_VERSION=1.23
 
 # Default target
 .DEFAULT_GOAL := help

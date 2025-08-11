@@ -23,7 +23,7 @@ The platform is built with:
 
 ### Prerequisites
 
-- Go 1.21 or later
+- Go 1.23 or later
 - Docker and Docker Compose
 - MongoDB 7.0+
 - Redis 7.2+
