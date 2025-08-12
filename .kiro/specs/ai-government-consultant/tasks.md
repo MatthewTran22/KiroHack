@@ -46,17 +46,29 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write comprehensive tests for authentication flows and authorization checks
   - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 4. Create document processing service
+- [x] 4. Create document processing service
+
+
+
+
+
+
+
+
   - Implement file upload handler with validation for supported document formats (PDF, DOC, DOCX, TXT)
   - Build document parsing and text extraction functionality
   - Create document metadata extraction and classification system
   - Implement document storage in MongoDB with proper indexing for search
   - Add document processing status tracking and error handling
-  - Write tests for document upload, processing, and retrieval workflows
+  - Write tests for document upload, processing, and retrieval workflows that interacts with the docker container
   - _Requirements: 1.1, 1.2, 1.3, 1.4_
 
 - [ ] 5. Implement vector embedding and search capabilities
-  - Integrate with embedding service API (OpenAI, Hugging Face, or similar) for text vectorization
+
+
+
+
+  - Integrate with embedding service API (Gemini 2.5 Flash) for text vectorization
   - Create vector storage and indexing in MongoDB using vector search capabilities
   - Implement semantic similarity search functionality for documents and knowledge items
   - Build embedding generation pipeline for new documents and knowledge entries
