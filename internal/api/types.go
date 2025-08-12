@@ -6,8 +6,15 @@ import (
 
 // ErrorResponse represents an API error response
 type ErrorResponse struct {
-	Error string `json:"error"`
-	Code  string `json:"code"`
+	Error   string `json:"error"`
+	Message string `json:"message,omitempty"`
+	Code    string `json:"code,omitempty"`
+}
+
+// SuccessResponse represents a successful API response
+type SuccessResponse struct {
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
 }
 
 // SearchResponse represents a search response

@@ -68,12 +68,17 @@ This implementation plan converts the AI Government Consultant design into a ser
 
 
 
+
+
+
+
+
   - Integrate with embedding service API (Gemini 2.5 Flash) for text vectorization
   - Create vector storage and indexing in MongoDB using vector search capabilities
   - Implement semantic similarity search functionality for documents and knowledge items
   - Build embedding generation pipeline for new documents and knowledge entries
   - Add vector search optimization and caching mechanisms
-  - Write tests for embedding generation and similarity search accuracy
+  - Write tests for embedding generation and similarity search accuracy that interacts with the docker container
   - _Requirements: 1.1, 1.2, 7.1, 7.2_
 
 - [ ] 6. Build knowledge management system

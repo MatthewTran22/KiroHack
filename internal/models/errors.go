@@ -55,3 +55,11 @@ var (
 	ErrKnowledgeCreatedByRequired = errors.New("knowledge created by is required")
 	ErrKnowledgeConfidenceInvalid = errors.New("knowledge confidence is invalid")
 )
+
+// Embedding validation errors
+var (
+	ErrEmbeddingRequired      = errors.New("embedding is required")
+	ErrEmbeddingInvalid       = errors.New("embedding is invalid")
+	ErrEmbeddingDimensionZero = errors.New("embedding dimension cannot be zero")
+	ErrEmbeddingNotGenerated  = errors.New("embedding has not been generated")
+)

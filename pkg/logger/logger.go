@@ -192,3 +192,36 @@ func GinMiddleware(logger Logger) gin.HandlerFunc {
 		}
 	}
 }
+
+// testLogger is a logger implementation for testing
+type testLogger struct{}
+
+// NewTestLogger creates a logger for testing that doesn't output anything
+func NewTestLogger() Logger {
+	return &testLogger{}
+}
+
+// Debug implements Logger interface for testing
+func (t *testLogger) Debug(message string, fields map[string]interface{}) {
+	// No-op for testing
+}
+
+// Info implements Logger interface for testing
+func (t *testLogger) Info(message string, fields map[string]interface{}) {
+	// No-op for testing
+}
+
+// Warn implements Logger interface for testing
+func (t *testLogger) Warn(message string, fields map[string]interface{}) {
+	// No-op for testing
+}
+
+// Error implements Logger interface for testing
+func (t *testLogger) Error(message string, err error, fields map[string]interface{}) {
+	// No-op for testing
+}
+
+// Fatal implements Logger interface for testing
+func (t *testLogger) Fatal(message string, err error, fields map[string]interface{}) {
+	// No-op for testing (don't exit in tests)
+}
