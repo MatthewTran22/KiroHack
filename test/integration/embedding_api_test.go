@@ -55,8 +55,12 @@ func TestEmbeddingAPIIntegration(t *testing.T) {
 
 	// Setup MongoDB connection
 	mongoConfig := &database.Config{
-		URI:          mongoURI,
-		DatabaseName: "ai_government_consultant_api_test",
+		URI:            mongoURI,
+		DatabaseName:   "ai_government_consultant_api_test",
+		ConnectTimeout: 30 * time.Second,
+		MaxPoolSize:    10,
+		MinPoolSize:    1,
+		MaxIdleTime:    1 * time.Minute,
 	}
 
 	mongodb, err := database.NewMongoDB(mongoConfig)
