@@ -40,6 +40,7 @@ func New(cfg *config.Config) *Server {
 	// Add middleware
 	router.Use(gin.Recovery())
 	router.Use(logger.GinMiddleware(log))
+	router.Use(corsMiddleware())
 
 	return &Server{
 		config: cfg,
@@ -121,4 +122,42 @@ func (s *Server) statusCheck(c *gin.Context) {
 		"status":  "operational",
 		"service": "ai-government-consultant",
 	})
+}
+
+// corsMiddleware handles CORS for cross-origin requests
+func corsMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		origin := c.Request.Header.Get("Origin")
+
+		// Define allowed origins
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"https://localhost:3000",
+		}
+
+		// Check if the origin is in the allowed list
+		allowedOrigin := ""
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				allowedOrigin = origin
+				break
+			}
+		}
+
+		// Set CORS headers
+		if allowedOrigin != "" {
+			c.Header("Access-Control-Allow-Origin", allowedOrigin)
+		}
+		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Session-ID")
+		c.Header("Access-Control-Expose-Headers", "Content-Length")
+		c.Header("Access-Control-Allow-Credentials", "true")
+
+		if c.Request.Method == "OPTIONS" {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+
+		c.Next()
+	}
 }
