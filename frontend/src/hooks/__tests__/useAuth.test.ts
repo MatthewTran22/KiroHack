@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useAuth, useRequireAuth, useRedirectIfAuthenticated } from '../useAuth';
 import { useAuthStore } from '../../stores/auth';
-import { setupAuthMocks, cleanupAuthMocks, mockUser } from '../../test/auth-test-utils';
+import { setupAuthMocks, cleanupAuthMocks } from '../../test/auth-test-utils';
 import { tokenManager } from '../../lib/auth';
 
 // Mock next/navigation

@@ -62,13 +62,14 @@ export const useAuthStore = create<AuthStore>()(
             loginAttempts: 0,
             error: null,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
           const newAttempts = loginAttempts + 1;
           const shouldLock = newAttempts >= 3;
           
+          const errorMessage = error instanceof Error ? error.message : 'Login failed';
           set({
             isLoading: false,
-            error: error.message || 'Login failed',
+            error: errorMessage,
             loginAttempts: newAttempts,
             isLocked: shouldLock,
           });
@@ -131,12 +132,13 @@ export const useAuthStore = create<AuthStore>()(
             isAuthenticated: true,
             isLoading: false,
           });
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           set({
             user: null,
             isAuthenticated: false,
             isLoading: false,
-            error: error.message,
+            error: errorMessage,
           });
           tokenManager.clearTokens();
         }
@@ -152,14 +154,14 @@ export const useAuthStore = create<AuthStore>()(
         if (tokenManager.isTokenValid()) {
           try {
             await get().getCurrentUser();
-          } catch (error) {
+          } catch {
             // getCurrentUser already handles the error state
           }
         } else {
           // Try to refresh the token
           try {
             await get().refreshToken();
-          } catch (error) {
+          } catch {
             set({ isAuthenticated: false, user: null });
           }
         }

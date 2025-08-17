@@ -74,7 +74,7 @@ describe('Middleware', () => {
     it('should allow access to protected route with valid token', () => {
       const request = createRequest('/dashboard', mockJWTToken);
       
-      const response = middleware(request);
+      middleware(request);
 
       expect(NextResponse.redirect).not.toHaveBeenCalled();
       expect(NextResponse.next).toHaveBeenCalled();
@@ -154,7 +154,7 @@ describe('Middleware', () => {
 
       const request = createRequest('/audit', adminToken);
       
-      const response = middleware(request);
+      middleware(request);
 
       expect(NextResponse.redirect).not.toHaveBeenCalled();
       expect(NextResponse.next).toHaveBeenCalled();
@@ -189,7 +189,7 @@ describe('Middleware', () => {
     it('should allow unauthenticated user to access login page', () => {
       const request = createRequest('/login');
       
-      const response = middleware(request);
+      middleware(request);
 
       expect(NextResponse.redirect).not.toHaveBeenCalled();
       expect(NextResponse.next).toHaveBeenCalled();
@@ -243,7 +243,7 @@ describe('Middleware', () => {
         },
       } as unknown as NextRequest;
 
-      const response = middleware(request);
+      middleware(request);
 
       expect(NextResponse.redirect).not.toHaveBeenCalled();
       expect(NextResponse.next).toHaveBeenCalled();

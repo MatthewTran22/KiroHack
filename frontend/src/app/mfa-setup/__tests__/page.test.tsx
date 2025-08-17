@@ -1,5 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@testing-library/react';
 import MFASetupPage from '../page';
 import { setupAuthMocks, cleanupAuthMocks, mockUser, mockAPIResponses } from '../../../test/auth-test-utils';
 import { useAuth, useRequireAuth } from '../../../hooks/useAuth';

@@ -7,7 +7,7 @@ export class APIError extends Error {
     message: string,
     public status: number,
     public code?: string,
-    public details?: any
+    public details?: Record<string, unknown>
   ) {
     super(message);
     this.name = 'APIError';

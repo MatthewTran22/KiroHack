@@ -133,7 +133,7 @@ describe('Authentication Integration Tests', () => {
       try {
         await apiClient.getCurrentUser();
         fail('Should have thrown an error');
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.status).toBe(401);
       }
     });
@@ -184,7 +184,7 @@ describe('Authentication Integration Tests', () => {
       try {
         await apiClient.getCurrentUser();
         fail('Should have thrown an error for expired token');
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.status).toBe(401);
       }
     });
@@ -203,7 +203,7 @@ describe('Authentication Integration Tests', () => {
           password: 'testpassword123',
         });
         fail('Should have thrown a network error');
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.message).toContain('Network error');
       }
     });
@@ -217,7 +217,7 @@ describe('Authentication Integration Tests', () => {
       try {
         await apiClient.getCurrentUser();
         fail('Should have thrown a parsing error');
-      } catch (error: any) {
+      } catch (error: unknown) {
         expect(error.message).toContain('Invalid response');
       }
     });

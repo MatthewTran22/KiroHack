@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { useAuthStore } from '../auth';
-import { setupAuthMocks, cleanupAuthMocks, mockFetch, mockAPIResponses, mockUser } from '../../test/auth-test-utils';
+import { setupAuthMocks, cleanupAuthMocks, mockAPIResponses, mockUser } from '../../test/auth-test-utils';
 import { tokenManager } from '../../lib/auth';
 
 // Mock the API client
@@ -79,7 +79,7 @@ describe('useAuthStore', () => {
             email: 'test@example.com',
             password: 'wrongpassword',
           });
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
       });
@@ -106,7 +106,7 @@ describe('useAuthStore', () => {
               email: 'test@example.com',
               password: 'wrongpassword',
             });
-          } catch (e) {
+          } catch {
             // Expected to throw
           }
         });
@@ -122,7 +122,7 @@ describe('useAuthStore', () => {
             email: 'test@example.com',
             password: 'wrongpassword',
           });
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
       });
@@ -231,7 +231,7 @@ describe('useAuthStore', () => {
       await act(async () => {
         try {
           await result.current.refreshToken();
-        } catch (e) {
+        } catch {
           // Expected to throw
         }
       });

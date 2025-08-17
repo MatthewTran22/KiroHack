@@ -10,7 +10,7 @@ jest.mock('next/navigation');
 jest.mock('@/stores/auth');
 jest.mock('@/stores/ui');
 jest.mock('../header', () => ({
-  Header: ({ onSearch, onNewConsultation }: any) => (
+  Header: ({ onSearch, onNewConsultation }: { onSearch?: (query: string) => void; onNewConsultation?: () => void }) => (
     <div data-testid="header">
       <button onClick={() => onSearch('test')}>Search</button>
       <button onClick={onNewConsultation}>New Consultation</button>

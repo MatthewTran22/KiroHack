@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -57,8 +58,9 @@ export default function MFASetupPage() {
         setIsLoading(true);
         const setup = await apiClient.setupMFA();
         setMfaSetup(setup);
-      } catch (err: any) {
-        setError(err.message || 'Failed to setup MFA');
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to setup MFA';
+        setError(errorMessage);
       } finally {
         setIsLoading(false);
       }
@@ -84,8 +86,9 @@ export default function MFASetupPage() {
       } else {
         setError('Invalid verification code. Please try again.');
       }
-    } catch (err: any) {
-      setError(err.message || 'Verification failed');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Verification failed';
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -169,9 +172,11 @@ export default function MFASetupPage() {
                 ) : mfaSetup ? (
                   <div className="space-y-4">
                     <div className="flex justify-center">
-                      <img
+                      <Image
                         src={mfaSetup.qrCode}
                         alt="MFA QR Code"
+                        width={256}
+                        height={256}
                         className="border rounded-lg"
                       />
                     </div>

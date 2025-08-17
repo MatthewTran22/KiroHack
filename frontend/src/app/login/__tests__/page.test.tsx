@@ -1,7 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import LoginPage from '../page';
-import { setupAuthMocks, cleanupAuthMocks, mockAPIResponses } from '../../../test/auth-test-utils';
+import { setupAuthMocks, cleanupAuthMocks } from '../../../test/auth-test-utils';
 import { useAuth, useRedirectIfAuthenticated } from '../../../hooks/useAuth';
 
 // Mock the hooks

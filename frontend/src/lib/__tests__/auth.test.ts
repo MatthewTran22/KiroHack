@@ -7,7 +7,7 @@ describe('AuthTokenManager', () => {
   beforeEach(() => {
     setupAuthMocks();
     // Get a fresh instance for each test
-    tokenManager = (AuthTokenManager as any).instance = null;
+    tokenManager = (AuthTokenManager as unknown as { instance: AuthTokenManager | null }).instance = null;
     tokenManager = AuthTokenManager.getInstance();
   });
 
@@ -116,7 +116,7 @@ describe('AuthTokenManager', () => {
       mockLocalStorage.setItem('refresh_token', 'stored-refresh-token');
 
       // Create new instance to test loading
-      (AuthTokenManager as any).instance = null;
+      (AuthTokenManager as unknown as { instance: AuthTokenManager | null }).instance = null;
       const newTokenManager = AuthTokenManager.getInstance();
 
       expect(newTokenManager.getToken()).toBe('stored-token');

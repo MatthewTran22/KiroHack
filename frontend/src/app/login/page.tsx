@@ -61,15 +61,18 @@ export default function LoginPage() {
       
       await login(data);
       router.push(redirectTo);
-    } catch (err: any) {
-      if (err.status === 401 && err.code === 'MFA_REQUIRED') {
-        setShowMFA(true);
-      } else if (err.status === 400) {
-        // Handle validation errors
-        if (err.details?.field) {
-          setError(err.details.field as keyof LoginFormData, {
-            message: err.message,
-          });
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'status' in err) {
+        const error = err as { status: number; code?: string; message?: string; details?: { field?: string } };
+        if (error.status === 401 && error.code === 'MFA_REQUIRED') {
+          setShowMFA(true);
+        } else if (error.status === 400) {
+          // Handle validation errors
+          if (error.details?.field) {
+            setError(error.details.field as keyof LoginFormData, {
+              message: error.message || 'Validation error',
+            });
+          }
         }
       }
     }
