@@ -304,8 +304,25 @@ func (m *AuthMiddleware) CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		origin := c.Request.Header.Get("Origin")
 
-		// In production, you should validate allowed origins
-		c.Header("Access-Control-Allow-Origin", origin)
+		// Define allowed origins
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"https://localhost:3000",
+		}
+
+		// Check if the origin is in the allowed list
+		allowedOrigin := ""
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				allowedOrigin = origin
+				break
+			}
+		}
+
+		// Set CORS headers
+		if allowedOrigin != "" {
+			c.Header("Access-Control-Allow-Origin", allowedOrigin)
+		}
 		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Session-ID")
 		c.Header("Access-Control-Expose-Headers", "Content-Length")
