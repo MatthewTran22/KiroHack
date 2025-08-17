@@ -130,7 +130,17 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write tests for audit logging completeness and report generation
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 8.4_
 
-- [ ] 10. Create REST API endpoints with Gin framework
+- [ ] 10. Implement LangChain research service for policy analysis
+  - Integrate LangChain framework for automated research workflows
+  - Create research agents that query current events APIs and news sources
+  - Implement policy context analysis that triggers research when documents are uploaded
+  - Build policy suggestion generation based on current events and research findings
+  - Add research result validation and source credibility scoring
+  - Create research data storage and retrieval in MongoDB
+  - Write tests for research workflows and policy suggestion accuracy
+  - _Requirements: 1.1, 1.2, 7.1, 7.2, 7.3_
+
+- [ ] 11. Create REST API endpoints with Gin framework
 
 
 
@@ -143,7 +153,17 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write integration tests for all API endpoints and error scenarios using the existing docker containers
   - _Requirements: All requirements (API layer for all functionality)_
 
-- [ ] 11. Implement security and compliance features
+- [ ] 12. Implement speech-to-text and text-to-speech services
+  - Integrate Wav2Vec2 open-source model for speech-to-text transcription with local processing capabilities
+  - Implement ElevenLabs integration for high-quality text-to-speech conversion
+  - Create audio preprocessing pipeline for Wav2Vec2 including resampling and normalization
+  - Build speech session management for audio consultation interactions
+  - Add voice authentication and security measures for sensitive audio data
+  - Create audio format conversion and optimization utilities for Wav2Vec2 input requirements
+  - Write tests for Wav2Vec2 transcription accuracy and ElevenLabs TTS quality
+  - _Requirements: 2.1, 2.2 (voice interaction capabilities for consultations)_
+
+- [ ] 13. Implement security and compliance features
   - Add data encryption at rest and in transit using government-approved algorithms
   - Implement data classification and handling based on security levels
   - Create data retention and purging mechanisms according to government policies
@@ -152,7 +172,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write security tests and penetration testing scenarios
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 12. Build monitoring and observability system
+- [ ] 14. Build monitoring and observability system
   - Implement application metrics collection and monitoring
   - Create health check endpoints and system status monitoring
   - Add performance monitoring and alerting for critical operations
@@ -161,7 +181,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write tests for monitoring and alerting functionality
   - _Requirements: 6.4 (system monitoring and operational visibility)_
 
-- [ ] 13. Create deployment and infrastructure configuration
+- [ ] 15. Create deployment and infrastructure configuration
   - Create Docker containers for all services with proper security configurations
   - Build Kubernetes deployment manifests with resource limits and security policies
   - Implement database migration scripts and version management
@@ -170,7 +190,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write deployment tests and infrastructure validation scripts
   - _Requirements: 8.4 (deployment security and data protection)_
 
-- [ ] 14. Implement comprehensive testing suite
+- [ ] 16. Implement comprehensive testing suite
   - Create unit tests for all business logic and data models with high coverage
   - Build integration tests for service interactions and database operations
   - Implement end-to-end tests for complete user workflows
@@ -179,7 +199,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Build automated test execution pipeline with continuous integration
   - _Requirements: All requirements (comprehensive testing ensures all functionality works correctly)_
 
-- [ ] 15. Add caching and performance optimization
+- [ ] 17. Add caching and performance optimization
   - Implement Redis caching for frequently accessed data and search results
   - Add query optimization and database indexing for improved performance
   - Create response caching for AI consultation results
@@ -188,7 +208,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write performance tests and benchmarking suite
   - _Requirements: 1.1, 2.1, 3.1 (performance requirements for timely responses)_
 
-- [ ] 16. Create error handling and resilience features
+- [ ] 18. Create error handling and resilience features
   - Implement comprehensive error handling with proper error codes and messages
   - Add circuit breaker patterns for external service dependencies
   - Create retry mechanisms with exponential backoff for transient failures
@@ -197,7 +217,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write chaos engineering tests for system resilience validation
   - _Requirements: 1.4, 2.4, 4.4 (error handling requirements)_
 
-- [ ] 17. Build configuration and environment management
+- [ ] 19. Build configuration and environment management
   - Create environment-specific configuration files with proper secret management
   - Implement configuration validation and default value handling
   - Add runtime configuration updates without service restart
@@ -206,7 +226,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write tests for configuration management and validation
   - _Requirements: 8.1, 8.2, 8.3 (security configuration requirements)_
 
-- [ ] 18. Implement final integration and system testing
+- [ ] 20. Implement final integration and system testing
   - Create comprehensive system integration tests covering all services
   - Build end-to-end user journey tests from document upload to consultation
   - Implement load testing for concurrent users and high-volume scenarios

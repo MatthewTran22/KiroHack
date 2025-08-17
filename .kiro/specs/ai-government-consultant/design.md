@@ -36,6 +36,9 @@ graph TB
     subgraph "AI/ML Layer"
         LLM[Large Language Model]
         EMBED[Embedding Service]
+        LANGCHAIN[LangChain Research Agent]
+        TTS[Text-to-Speech Service]
+        STT[Speech-to-Text Service]
     end
     
     subgraph "Data Layer"
@@ -66,11 +69,17 @@ graph TB
     DOC_PROC --> EMBED
     DOC_PROC --> DOC_STORE
     DOC_PROC --> MONGO_DB
+    DOC_PROC --> LANGCHAIN
     
     AI_CONSUL --> LLM
     AI_CONSUL --> MONGO_DB
     AI_CONSUL --> KNOWLEDGE
     AI_CONSUL --> AUDIT
+    AI_CONSUL --> TTS
+    AI_CONSUL --> STT
+    
+    LANGCHAIN --> LLM
+    LANGCHAIN --> KNOWLEDGE
     
     KNOWLEDGE --> MONGO_DB
     
@@ -258,6 +267,120 @@ type AuditActivity struct {
 }
 ```
 
+### LangChain Research Service
+
+**Purpose**: Automated research and policy suggestion generation using LangChain framework.
+
+**Key Responsibilities**:
+- Current events research for policy documents
+- Policy impact analysis based on recent developments
+- Automated research report generation
+- Integration with external data sources and news APIs
+- Research result validation and fact-checking
+
+**Interfaces**:
+```go
+type LangChainResearchService interface {
+    ResearchPolicyContext(document *ProcessedDocument) (*ResearchResult, error)
+    GeneratePolicySuggestions(researchResult *ResearchResult) ([]PolicySuggestion, error)
+    ValidateResearchSources(sources []ResearchSource) (*ValidationResult, error)
+    GetCurrentEvents(topic string, timeframe time.Duration) ([]CurrentEvent, error)
+}
+
+type ResearchResult struct {
+    DocumentID      string           `json:"document_id" bson:"document_id"`
+    ResearchQuery   string           `json:"research_query" bson:"research_query"`
+    CurrentEvents   []CurrentEvent   `json:"current_events" bson:"current_events"`
+    PolicyImpacts   []PolicyImpact   `json:"policy_impacts" bson:"policy_impacts"`
+    Sources         []ResearchSource `json:"sources" bson:"sources"`
+    Confidence      float64          `json:"confidence" bson:"confidence"`
+    GeneratedAt     time.Time        `json:"generated_at" bson:"generated_at"`
+}
+
+type PolicySuggestion struct {
+    ID              string                `json:"id" bson:"_id"`
+    Title           string                `json:"title" bson:"title"`
+    Description     string                `json:"description" bson:"description"`
+    Rationale       string                `json:"rationale" bson:"rationale"`
+    CurrentContext  []CurrentEvent        `json:"current_context" bson:"current_context"`
+    Implementation  ImplementationPlan    `json:"implementation" bson:"implementation"`
+    RiskAssessment  PolicyRiskAssessment  `json:"risk_assessment" bson:"risk_assessment"`
+    Priority        Priority              `json:"priority" bson:"priority"`
+}
+```
+
+### Speech Services
+
+**Purpose**: Text-to-speech and speech-to-text functionality for accessibility and voice interactions.
+
+**Key Responsibilities**:
+- Convert consultation responses to natural speech using ElevenLabs API
+- Transcribe voice queries to text using locally deployed Wav2Vec2 models for data privacy
+- Support multiple languages through different Wav2Vec2 model variants
+- Maintain audio quality and accuracy standards with preprocessing pipelines
+- Handle sensitive information with appropriate security through local processing
+- Provide real-time transcription capabilities with chunked audio processing
+
+**Interfaces**:
+```go
+type TextToSpeechService interface {
+    ConvertToSpeech(text string, options TTSOptions) (*AudioResult, error)
+    GetAvailableVoices() ([]Voice, error)
+    ValidateTextContent(text string) (*ContentValidation, error)
+}
+
+type SpeechToTextService interface {
+    TranscribeAudio(audioData []byte, options STTOptions) (*TranscriptionResult, error)
+    GetSupportedLanguages() ([]Language, error)
+    ValidateAudioFormat(audioData []byte) (*FormatValidation, error)
+}
+
+type TTSOptions struct {
+    Voice      string  `json:"voice"`
+    Speed      float64 `json:"speed"`
+    Language   string  `json:"language"`
+    OutputFormat string `json:"output_format"` // "mp3", "wav", "ogg"
+}
+
+type STTOptions struct {
+    Language        string  `json:"language"`
+    Model          string  `json:"model"` // Wav2Vec2 model variant (base, large, etc.)
+    EnablePunctuation bool  `json:"enable_punctuation"`
+    FilterProfanity bool   `json:"filter_profanity"`
+    SampleRate     int     `json:"sample_rate"` // Audio sample rate for Wav2Vec2
+    ChunkSize      int     `json:"chunk_size"`  // Audio chunk size for processing
+}
+
+type AudioResult struct {
+    AudioData   []byte    `json:"audio_data"`
+    Duration    float64   `json:"duration"`
+    Format      string    `json:"format"`
+    Size        int64     `json:"size"`
+    GeneratedAt time.Time `json:"generated_at"`
+}
+
+type TranscriptionResult struct {
+    Text        string    `json:"text"`
+    Confidence  float64   `json:"confidence"`
+    Language    string    `json:"language"`
+    Duration    float64   `json:"duration"`
+    Timestamps  []WordTimestamp `json:"timestamps,omitempty"`
+    ProcessedAt time.Time `json:"processed_at"`
+    ModelUsed   string    `json:"model_used"` // Wav2Vec2 model variant used
+    ProcessingTime float64 `json:"processing_time"` // Time taken for transcription
+}
+
+// Wav2Vec2 specific configuration
+type Wav2Vec2Config struct {
+    ModelPath       string  `json:"model_path"`       // Path to local Wav2Vec2 model
+    ProcessorPath   string  `json:"processor_path"`   // Path to audio processor
+    DeviceType      string  `json:"device_type"`      // "cpu" or "cuda"
+    BatchSize       int     `json:"batch_size"`       // Batch size for processing
+    MaxAudioLength  int     `json:"max_audio_length"` // Maximum audio length in seconds
+    SampleRate      int     `json:"sample_rate"`      // Required sample rate (16000 Hz)
+}
+```
+
 ## Data Models
 
 ### Core Data Models
@@ -364,6 +487,72 @@ type KnowledgeRelationship struct {
     Strength float64          `json:"strength" bson:"strength"`
     Context  string           `json:"context" bson:"context"`
 }
+
+// Research and Policy Models
+type CurrentEvent struct {
+    ID          string    `json:"id" bson:"_id"`
+    Title       string    `json:"title" bson:"title"`
+    Description string    `json:"description" bson:"description"`
+    Source      string    `json:"source" bson:"source"`
+    URL         string    `json:"url" bson:"url"`
+    PublishedAt time.Time `json:"published_at" bson:"published_at"`
+    Relevance   float64   `json:"relevance" bson:"relevance"`
+    Category    string    `json:"category" bson:"category"`
+    Tags        []string  `json:"tags" bson:"tags"`
+}
+
+type PolicyImpact struct {
+    Area        string    `json:"area" bson:"area"`
+    Impact      string    `json:"impact" bson:"impact"`
+    Severity    string    `json:"severity" bson:"severity"` // "low", "medium", "high", "critical"
+    Timeframe   string    `json:"timeframe" bson:"timeframe"`
+    Stakeholders []string `json:"stakeholders" bson:"stakeholders"`
+    Mitigation  []string  `json:"mitigation" bson:"mitigation"`
+}
+
+type ResearchSource struct {
+    Type        string    `json:"type" bson:"type"` // "news", "academic", "government", "industry"
+    Title       string    `json:"title" bson:"title"`
+    URL         string    `json:"url" bson:"url"`
+    Author      string    `json:"author" bson:"author"`
+    PublishedAt time.Time `json:"published_at" bson:"published_at"`
+    Credibility float64   `json:"credibility" bson:"credibility"`
+    Relevance   float64   `json:"relevance" bson:"relevance"`
+}
+
+type PolicyRiskAssessment struct {
+    OverallRisk     string              `json:"overall_risk" bson:"overall_risk"`
+    RiskFactors     []RiskFactor        `json:"risk_factors" bson:"risk_factors"`
+    MitigationSteps []MitigationStep    `json:"mitigation_steps" bson:"mitigation_steps"`
+    MonitoringPlan  []MonitoringMetric  `json:"monitoring_plan" bson:"monitoring_plan"`
+}
+
+// Speech Service Models
+type Voice struct {
+    ID          string   `json:"id" bson:"_id"`
+    Name        string   `json:"name" bson:"name"`
+    Language    string   `json:"language" bson:"language"`
+    Gender      string   `json:"gender" bson:"gender"`
+    Age         string   `json:"age" bson:"age"`
+    Style       string   `json:"style" bson:"style"`
+    SampleRate  int      `json:"sample_rate" bson:"sample_rate"`
+    Formats     []string `json:"formats" bson:"formats"`
+    IsDefault   bool     `json:"is_default" bson:"is_default"`
+}
+
+type WordTimestamp struct {
+    Word      string  `json:"word" bson:"word"`
+    StartTime float64 `json:"start_time" bson:"start_time"`
+    EndTime   float64 `json:"end_time" bson:"end_time"`
+    Confidence float64 `json:"confidence" bson:"confidence"`
+}
+
+type Language struct {
+    Code        string `json:"code" bson:"code"`
+    Name        string `json:"name" bson:"name"`
+    Region      string `json:"region" bson:"region"`
+    IsSupported bool   `json:"is_supported" bson:"is_supported"`
+}
 ```
 
 ### Database Schema Design
@@ -375,6 +564,10 @@ type KnowledgeRelationship struct {
 - `consultations`: Consultation sessions, responses, and history
 - `audit_logs`: Comprehensive audit trails and compliance data
 - `system_config`: System configuration and settings
+- `research_results`: LangChain research findings and policy suggestions
+- `current_events`: Current events data for policy context
+- `policy_suggestions`: Generated policy recommendations based on research
+- `speech_sessions`: Audio transcription and TTS generation history
 
 **MongoDB Vector Search**:
 - Vector indexes on document embeddings for semantic similarity search
