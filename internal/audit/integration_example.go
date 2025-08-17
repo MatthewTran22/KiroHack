@@ -10,53 +10,37 @@ import (
 // IntegrateAuditSystem shows how to integrate the audit system into the main server
 func IntegrateAuditSystem(router *gin.Engine, cfg *config.Config) (Service, error) {
 	// Initialize MongoDB connection
-	db, err := database.NewMongoDB(cfg.Database)
+	dbConfig := &database.Config{
+		URI:          cfg.Database.MongoURI,
+		DatabaseName: cfg.Database.Database,
+		MaxPoolSize:  uint64(cfg.Database.MaxPoolSize),
+	}
+	
+	db, err := database.NewMongoDB(dbConfig)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create audit repository and service
-	auditRepo := NewMongoRepository(db)
+	auditRepo := NewMongoRepository(db.Database)
 	auditService := NewService(auditRepo)
 
 	// Add audit middleware to all routes
 	router.Use(AuditMiddleware(auditService))
 	router.Use(SecurityEventMiddleware(auditService))
 
-	// Add audit API routes
-	auditHandler := NewAuditHandler(auditService)
+	// Add audit API routes (handler would need to be implemented)
+	// auditHandler := NewAuditHandler(auditService)
+	// Example audit routes (would need handler implementation)
 	auditGroup := router.Group("/api/v1/audit")
 	{
-		// Audit logs endpoints
-		auditGroup.GET("/logs", auditHandler.SearchAuditLogs)
-		auditGroup.GET("/logs/:id", auditHandler.GetAuditEntry)
-		auditGroup.GET("/users/:user_id/activity", auditHandler.GetUserActivity)
-
-		// Data lineage endpoints
-		auditGroup.GET("/lineage/:data_id", auditHandler.GetDataLineage)
-		auditGroup.GET("/provenance/:data_id", auditHandler.GetDataProvenance)
-
-		// Audit reports endpoints
-		auditGroup.POST("/reports", auditHandler.GenerateAuditReport)
-		auditGroup.GET("/reports", auditHandler.ListAuditReports)
-		auditGroup.GET("/reports/:id", auditHandler.GetAuditReport)
-		auditGroup.GET("/reports/:id/export", auditHandler.ExportAuditReport)
-
-		// Security endpoints
-		securityGroup := auditGroup.Group("/security")
-		{
-			securityGroup.GET("/alerts", auditHandler.GetSecurityAlerts)
-			securityGroup.PUT("/alerts/:id", auditHandler.UpdateSecurityAlert)
-			securityGroup.POST("/anomalies", auditHandler.DetectAnomalies)
-		}
-
-		// Compliance endpoints
-		complianceGroup := auditGroup.Group("/compliance")
-		{
-			complianceGroup.POST("/reports", auditHandler.GenerateComplianceReport)
-			complianceGroup.GET("/reports/:id", auditHandler.GetComplianceReport)
-			complianceGroup.GET("/validate/:standard", auditHandler.ValidateCompliance)
-		}
+		// Placeholder routes - handlers would need to be implemented
+		auditGroup.GET("/logs", func(c *gin.Context) {
+			c.JSON(200, gin.H{"message": "audit logs endpoint"})
+		})
+		auditGroup.GET("/status", func(c *gin.Context) {
+			c.JSON(200, gin.H{"status": "audit system active"})
+		})
 	}
 
 	return auditService, nil

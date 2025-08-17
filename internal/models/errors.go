@@ -63,3 +63,17 @@ var (
 	ErrEmbeddingDimensionZero = errors.New("embedding dimension cannot be zero")
 	ErrEmbeddingNotGenerated  = errors.New("embedding has not been generated")
 )
+
+// Research validation errors
+var (
+	ErrResearchDocumentIDRequired           = errors.New("research document ID is required")
+	ErrResearchQueryRequired                = errors.New("research query is required")
+	ErrPolicySuggestionTitleRequired        = errors.New("policy suggestion title is required")
+	ErrPolicySuggestionDescriptionRequired  = errors.New("policy suggestion description is required")
+	ErrPolicySuggestionCreatedByRequired    = errors.New("policy suggestion created by is required")
+	ErrCurrentEventTitleRequired            = errors.New("current event title is required")
+	ErrCurrentEventSourceRequired           = errors.New("current event source is required")
+	ErrCurrentEventURLRequired              = errors.New("current event URL is required")
+	ErrResearchSourceTitleRequired          = errors.New("research source title is required")
+	ErrResearchSourceURLRequired            = errors.New("research source URL is required")
+)

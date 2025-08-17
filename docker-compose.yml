@@ -20,6 +20,17 @@ services:
       - JWT_SECRET=your-jwt-secret-change-in-production
       - LLM_API_KEY=your-llm-api-key
       - LLM_PROVIDER=gemini
+      - NEWS_API_KEY=your-news-api-key
+      - NEWS_API_BASE_URL=https://newsapi.org/v2
+      - RESEARCH_LLM_MODEL=gemini-2.0-flash
+      - RESEARCH_MAX_CONCURRENT_REQUESTS=5
+      - RESEARCH_REQUEST_TIMEOUT=30
+      - RESEARCH_CACHE_ENABLED=true
+      - RESEARCH_CACHE_TTL=3600
+      - RESEARCH_DEFAULT_LANGUAGE=en
+      - RESEARCH_MAX_SOURCES_PER_QUERY=20
+      - RESEARCH_MIN_CREDIBILITY_SCORE=0.6
+      - RESEARCH_MIN_RELEVANCE_SCORE=0.5
     depends_on:
       - mongodb
       - redis

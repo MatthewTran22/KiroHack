@@ -118,6 +118,11 @@ func (m *MongoDB) CreateIndexes(ctx context.Context) error {
 		return fmt.Errorf("failed to create knowledge indexes: %w", err)
 	}
 
+	// Create indexes for research collections
+	if err := m.createResearchIndexes(ctx); err != nil {
+		return fmt.Errorf("failed to create research indexes: %w", err)
+	}
+
 	return nil
 }
 
@@ -278,6 +283,80 @@ func (m *MongoDB) createKnowledgeIndexes(ctx context.Context) error {
 
 	_, err := collection.Indexes().CreateMany(ctx, indexes)
 	return err
+}
+
+// createResearchIndexes creates indexes for research-related collections
+func (m *MongoDB) createResearchIndexes(ctx context.Context) error {
+	// Research results indexes
+	researchResultsCollection := m.GetCollection("research_results")
+	researchIndexes := []mongo.IndexModel{
+		{Keys: bson.D{{"document_id", 1}}},
+		{Keys: bson.D{{"status", 1}}},
+		{Keys: bson.D{{"generated_at", -1}}},
+		{Keys: bson.D{{"confidence", -1}}},
+		{Keys: bson.D{{"research_query", "text"}}},
+	}
+	
+	_, err := researchResultsCollection.Indexes().CreateMany(ctx, researchIndexes)
+	if err != nil {
+		return fmt.Errorf("failed to create research results indexes: %w", err)
+	}
+	
+	// Policy suggestions indexes
+	policySuggestionsCollection := m.GetCollection("policy_suggestions")
+	policyIndexes := []mongo.IndexModel{
+		{Keys: bson.D{{"category", 1}}},
+		{Keys: bson.D{{"priority", 1}}},
+		{Keys: bson.D{{"status", 1}}},
+		{Keys: bson.D{{"created_at", -1}}},
+		{Keys: bson.D{{"confidence", -1}}},
+		{Keys: bson.D{{"created_by", 1}}},
+		{Keys: bson.D{{"tags", 1}}},
+		{Keys: bson.D{{"title", "text"}, {"description", "text"}}},
+	}
+	
+	_, err = policySuggestionsCollection.Indexes().CreateMany(ctx, policyIndexes)
+	if err != nil {
+		return fmt.Errorf("failed to create policy suggestions indexes: %w", err)
+	}
+	
+	// Current events indexes
+	currentEventsCollection := m.GetCollection("current_events")
+	eventIndexes := []mongo.IndexModel{
+		{Keys: bson.D{{"category", 1}}},
+		{Keys: bson.D{{"tags", 1}}},
+		{Keys: bson.D{{"published_at", -1}}},
+		{Keys: bson.D{{"relevance", -1}}},
+		{Keys: bson.D{{"source", 1}}},
+		{Keys: bson.D{{"language", 1}}},
+		{Keys: bson.D{{"url", 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{"title", "text"}, {"description", "text"}, {"content", "text"}}},
+	}
+	
+	_, err = currentEventsCollection.Indexes().CreateMany(ctx, eventIndexes)
+	if err != nil {
+		return fmt.Errorf("failed to create current events indexes: %w", err)
+	}
+	
+	// Research sources indexes
+	researchSourcesCollection := m.GetCollection("research_sources")
+	sourceIndexes := []mongo.IndexModel{
+		{Keys: bson.D{{"type", 1}}},
+		{Keys: bson.D{{"credibility", -1}}},
+		{Keys: bson.D{{"relevance", -1}}},
+		{Keys: bson.D{{"published_at", -1}}},
+		{Keys: bson.D{{"keywords", 1}}},
+		{Keys: bson.D{{"language", 1}}},
+		{Keys: bson.D{{"url", 1}}, Options: options.Index().SetUnique(true)},
+		{Keys: bson.D{{"title", "text"}, {"content", "text"}, {"summary", "text"}}},
+	}
+	
+	_, err = researchSourcesCollection.Indexes().CreateMany(ctx, sourceIndexes)
+	if err != nil {
+		return fmt.Errorf("failed to create research sources indexes: %w", err)
+	}
+	
+	return nil
 }
 
 // HealthCheck performs a health check on the MongoDB connection
