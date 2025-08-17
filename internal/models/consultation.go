@@ -149,19 +149,30 @@ type ConsultationResponse struct {
 	ProcessingTime  time.Duration       `json:"processing_time" bson:"processing_time"`
 }
 
+// ConversationTurn represents a single turn in a multi-turn conversation
+type ConversationTurn struct {
+	ID        primitive.ObjectID    `json:"id" bson:"_id,omitempty"`
+	Query     string                `json:"query" bson:"query"`
+	Response  *ConsultationResponse `json:"response,omitempty" bson:"response,omitempty"`
+	Timestamp time.Time             `json:"timestamp" bson:"timestamp"`
+	TurnIndex int                   `json:"turn_index" bson:"turn_index"`
+}
+
 // ConsultationSession represents a consultation session
 type ConsultationSession struct {
-	ID        primitive.ObjectID     `json:"id" bson:"_id,omitempty"`
-	UserID    primitive.ObjectID     `json:"user_id" bson:"user_id"`
-	Type      ConsultationType       `json:"type" bson:"type"`
-	Query     string                 `json:"query" bson:"query"`
-	Response  *ConsultationResponse  `json:"response,omitempty" bson:"response,omitempty"`
-	Context   ConsultationContext    `json:"context" bson:"context"`
-	CreatedAt time.Time              `json:"created_at" bson:"created_at"`
-	UpdatedAt time.Time              `json:"updated_at" bson:"updated_at"`
-	Status    SessionStatus          `json:"status" bson:"status"`
-	Tags      []string               `json:"tags" bson:"tags"`
-	Metadata  map[string]interface{} `json:"metadata" bson:"metadata"`
+	ID                primitive.ObjectID     `json:"id" bson:"_id,omitempty"`
+	UserID            primitive.ObjectID     `json:"user_id" bson:"user_id"`
+	Type              ConsultationType       `json:"type" bson:"type"`
+	Query             string                 `json:"query" bson:"query"`
+	Response          *ConsultationResponse  `json:"response,omitempty" bson:"response,omitempty"`
+	Context           ConsultationContext    `json:"context" bson:"context"`
+	CreatedAt         time.Time              `json:"created_at" bson:"created_at"`
+	UpdatedAt         time.Time              `json:"updated_at" bson:"updated_at"`
+	Status            SessionStatus          `json:"status" bson:"status"`
+	Tags              []string               `json:"tags" bson:"tags"`
+	Metadata          map[string]interface{} `json:"metadata" bson:"metadata"`
+	ConversationTurns []ConversationTurn     `json:"conversation_turns,omitempty" bson:"conversation_turns,omitempty"`
+	IsMultiTurn       bool                   `json:"is_multi_turn" bson:"is_multi_turn"`
 }
 
 // Validate validates the consultation session model

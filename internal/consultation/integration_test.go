@@ -31,7 +31,7 @@ func setupIntegrationTest(t *testing.T) (*Service, *SessionManager, *mongo.Datab
 
 	mongoURI := os.Getenv("MONGO_TEST_URI")
 	if mongoURI == "" {
-		mongoURI = "mongodb://localhost:27017"
+		mongoURI = "mongodb://admin:password@localhost:27017/ai_government_consultant?authSource=admin"
 	}
 
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(mongoURI))
@@ -50,7 +50,7 @@ func setupIntegrationTest(t *testing.T) (*Service, *SessionManager, *mongo.Datab
 
 	redisPassword := os.Getenv("REDIS_TEST_PASSWORD")
 	if redisPassword == "" {
-		redisPassword = "testpassword"
+		redisPassword = "password" // Default password from docker-compose
 	}
 
 	redisClient := redis.NewClient(&redis.Options{
@@ -131,11 +131,11 @@ func setupIntegrationTest(t *testing.T) (*Service, *SessionManager, *mongo.Datab
 	// Cleanup function
 	cleanup := func() {
 		server.Close()
-		
+
 		// Clean up test data
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		
+
 		testDB.Drop(ctx)
 		redisClient.FlushDB(ctx)
 		redisClient.Close()
