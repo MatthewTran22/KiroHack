@@ -2,6 +2,24 @@ package embedding
 
 import "errors"
 
+// EmbeddingError represents an error in the embedding service
+type EmbeddingError struct {
+	Message string
+	Code    string
+	Err     error
+}
+
+func (e *EmbeddingError) Error() string {
+	if e.Err != nil {
+		return e.Message + ": " + e.Err.Error()
+	}
+	return e.Message
+}
+
+func (e *EmbeddingError) Unwrap() error {
+	return e.Err
+}
+
 // Embedding service errors
 var (
 	// API errors
