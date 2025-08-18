@@ -9,17 +9,29 @@ import (
 	"syscall"
 	"time"
 
+	"ai-government-consultant/internal/api"
+	"ai-government-consultant/internal/auth"
 	"ai-government-consultant/internal/config"
+	"ai-government-consultant/internal/consultation"
+	"ai-government-consultant/internal/database"
+	"ai-government-consultant/internal/document"
+	"ai-government-consultant/internal/embedding"
 	"ai-government-consultant/pkg/logger"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 )
 
 // Server represents the HTTP server
 type Server struct {
-	config *config.Config
-	router *gin.Engine
-	logger logger.Logger
+	config              *config.Config
+	router              *gin.Engine
+	logger              logger.Logger
+	authService         *auth.AuthService
+	documentService     *document.Service
+	consultationService *consultation.Service
+	knowledgeService    api.KnowledgeServiceInterface
+	auditService        api.AuditServiceInterface
 }
 
 // New creates a new server instance
@@ -37,10 +49,9 @@ func New(cfg *config.Config) *Server {
 	// Create Gin router
 	router := gin.New()
 
-	// Add middleware
+	// Add basic middleware
 	router.Use(gin.Recovery())
 	router.Use(logger.GinMiddleware(log))
-	router.Use(corsMiddleware())
 
 	return &Server{
 		config: cfg,
@@ -51,6 +62,11 @@ func New(cfg *config.Config) *Server {
 
 // Start starts the HTTP server
 func (s *Server) Start() error {
+	// Initialize services
+	if err := s.initializeServices(); err != nil {
+		return fmt.Errorf("failed to initialize services: %w", err)
+	}
+
 	// Setup routes
 	s.setupRoutes()
 
@@ -94,70 +110,92 @@ func (s *Server) Start() error {
 	return nil
 }
 
+// initializeServices initializes all the services
+func (s *Server) initializeServices() error {
+	// Initialize MongoDB
+	mongoClient, err := database.NewMongoClient(s.config.Database.MongoURI)
+	if err != nil {
+		return fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
+
+	db := mongoClient.Database(s.config.Database.Database)
+
+	// Initialize Redis
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", s.config.Redis.Host, s.config.Redis.Port),
+		Password: s.config.Redis.Password,
+		DB:       s.config.Redis.DB,
+	})
+
+	// Test Redis connection
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := redisClient.Ping(ctx).Err(); err != nil {
+		return fmt.Errorf("failed to connect to Redis: %w", err)
+	}
+
+	// Initialize services
+	s.documentService = document.NewService(db)
+	s.knowledgeService = api.NewSimpleKnowledgeService(db)
+	s.auditService = api.NewSimpleAuditService(db)
+
+	// Initialize auth service
+	jwtConfig := auth.JWTConfig{
+		AccessSecret:  s.config.Security.JWTSecret,
+		RefreshSecret: s.config.Security.JWTSecret + "_refresh",
+		AccessTTL:     15 * time.Minute,
+		RefreshTTL:    7 * 24 * time.Hour,
+		SessionTTL:    24 * time.Hour,
+		BlacklistTTL:  7 * 24 * time.Hour,
+		Issuer:        "ai-government-consultant",
+	}
+	s.authService = auth.NewAuthService(db.Collection("users"), redisClient, jwtConfig)
+
+	// Initialize embedding service (placeholder)
+	embeddingService := &embedding.Service{} // This would be properly initialized
+
+	// Initialize consultation service
+	consultationConfig := &consultation.Config{
+		GeminiAPIKey:     s.config.AI.LLMAPIKey,
+		MongoDB:          db,
+		Redis:            redisClient,
+		EmbeddingService: embeddingService,
+		Logger:           s.logger,
+		RateLimit: consultation.RateLimitConfig{
+			RequestsPerMinute: 60,
+			BurstSize:         10,
+		},
+	}
+	s.consultationService, err = consultation.NewService(consultationConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize consultation service: %w", err)
+	}
+
+	s.logger.Info("All services initialized successfully", nil)
+	return nil
+}
+
 // setupRoutes configures the API routes
 func (s *Server) setupRoutes() {
-	// Health check endpoint
-	s.router.GET("/health", s.healthCheck)
-
-	// API version 1 routes
-	v1 := s.router.Group("/api/v1")
-	{
-		// Placeholder routes - will be implemented in later tasks
-		v1.GET("/status", s.statusCheck)
+	// Define allowed origins
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"https://localhost:3000",
+		"http://localhost:8080",
+		"https://localhost:8080",
 	}
-}
 
-// healthCheck handles health check requests
-func (s *Server) healthCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":    "healthy",
-		"timestamp": time.Now().UTC(),
-		"version":   "1.0.0",
-	})
-}
-
-// statusCheck handles status check requests
-func (s *Server) statusCheck(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{
-		"status":  "operational",
-		"service": "ai-government-consultant",
-	})
-}
-
-// corsMiddleware handles CORS for cross-origin requests
-func corsMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		origin := c.Request.Header.Get("Origin")
-
-		// Define allowed origins
-		allowedOrigins := []string{
-			"http://localhost:3000",
-			"https://localhost:3000",
-		}
-
-		// Check if the origin is in the allowed list
-		allowedOrigin := ""
-		for _, allowed := range allowedOrigins {
-			if origin == allowed {
-				allowedOrigin = origin
-				break
-			}
-		}
-
-		// Set CORS headers
-		if allowedOrigin != "" {
-			c.Header("Access-Control-Allow-Origin", allowedOrigin)
-		}
-		c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		c.Header("Access-Control-Allow-Headers", "Origin, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, X-Session-ID")
-		c.Header("Access-Control-Expose-Headers", "Content-Length")
-		c.Header("Access-Control-Allow-Credentials", "true")
-
-		if c.Request.Method == "OPTIONS" {
-			c.AbortWithStatus(http.StatusNoContent)
-			return
-		}
-
-		c.Next()
+	// Setup API routes
+	routerConfig := &api.RouterConfig{
+		AuthService:         s.authService,
+		DocumentService:     s.documentService,
+		ConsultationService: s.consultationService,
+		KnowledgeService:    s.knowledgeService,
+		AuditService:        s.auditService,
+		AllowedOrigins:      allowedOrigins,
 	}
+
+	api.SetupRoutes(s.router, routerConfig)
+
+	s.logger.Info("API routes configured successfully", nil)
 }

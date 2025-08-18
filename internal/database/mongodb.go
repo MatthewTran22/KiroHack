@@ -374,3 +374,22 @@ func (m *MongoDB) HealthCheck(ctx context.Context) error {
 
 	return nil
 }
+
+// NewMongoClient creates a simple MongoDB client connection
+func NewMongoClient(uri string) (*mongo.Client, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI(uri))
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
+	}
+
+	// Test the connection
+	err = client.Ping(ctx, readpref.Primary())
+	if err != nil {
+		return nil, fmt.Errorf("failed to ping MongoDB: %w", err)
+	}
+
+	return client, nil
+}
