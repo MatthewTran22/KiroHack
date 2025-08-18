@@ -53,7 +53,7 @@ export const useAuthStore = create<AuthStore>()(
         try {
           const response: AuthResponse = await apiClient.login(credentials);
           
-          tokenManager.setTokens(response.token, response.refreshToken);
+          tokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token);
           
           set({
             user: response.user,
@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: async () => {
         try {
           const response: AuthResponse = await apiClient.refreshToken();
-          tokenManager.setTokens(response.token, response.refreshToken);
+          tokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token);
           
           set({
             user: response.user,

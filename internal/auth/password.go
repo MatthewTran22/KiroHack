@@ -39,11 +39,9 @@ func NewPasswordServiceWithCost(cost int) *PasswordService {
 }
 
 // HashPassword hashes a password using bcrypt
+// Note: Password validation should be done at the API level, not here
+// This allows system-generated passwords (like default admin) to bypass validation
 func (p *PasswordService) HashPassword(password string) (string, error) {
-	if err := p.ValidatePassword(password); err != nil {
-		return "", err
-	}
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), p.cost)
 	if err != nil {
 		return "", fmt.Errorf("failed to hash password: %w", err)

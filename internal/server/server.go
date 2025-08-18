@@ -120,6 +120,16 @@ func (s *Server) initializeServices() error {
 
 	db := mongoClient.Database(s.config.Database.Database)
 
+	// Initialize database (create indexes, default admin user, etc.)
+	mongodb := &database.MongoDB{
+		Client:   mongoClient,
+		Database: db,
+	}
+	if err := database.InitializeDatabase(mongodb); err != nil {
+		s.logger.Error("Failed to initialize database", err, nil)
+		// Don't fail startup, just log the error
+	}
+
 	// Initialize Redis
 	redisClient := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%s", s.config.Redis.Host, s.config.Redis.Port),

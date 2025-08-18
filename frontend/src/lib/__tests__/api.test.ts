@@ -1,294 +1,745 @@
 import { apiClient, APIError } from '../api';
-import { setupAuthMocks, cleanupAuthMocks, mockFetch, mockAPIResponses, mockJWTToken } from '../../test/auth-test-utils';
 import { tokenManager } from '../auth';
 
-describe('APIClient', () => {
+// Mock the auth module
+jest.mock('../auth', () => ({
+  tokenManager: {
+    getToken: jest.fn(),
+    getRefreshToken: jest.fn(),
+    setTokens: jest.fn(),
+    clearTokens: jest.fn(),
+  },
+}));
+
+// Mock fetch
+global.fetch = jest.fn();
+
+const mockFetch = fetch as jest.MockedFunction<typeof fetch>;
+const mockTokenManager = tokenManager as jest.Mocked<typeof tokenManager>;
+
+describe('API Client', () => {
   beforeEach(() => {
-    setupAuthMocks();
-    mockFetch.mockClear();
+    jest.clearAllMocks();
+    mockTokenManager.getToken.mockReturnValue('mock-token');
+    mockTokenManager.getRefreshToken.mockReturnValue('mock-refresh-token');
   });
 
-  afterEach(() => {
-    cleanupAuthMocks();
-  });
-
-  describe('login', () => {
-    it('should successfully login with valid credentials', async () => {
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockAPIResponses.login.success,
-      });
-
-      const credentials = {
-        email: 'test@example.com',
-        password: 'password123',
+  describe('Authentication API', () => {
+    it('should login successfully', async () => {
+      const mockResponse = {
+        user: { id: '1', email: 'test@example.com', name: 'Test User', role: 'user' as const, mfaEnabled: false, createdAt: new Date(), updatedAt: new Date() },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+        expiresAt: new Date(),
       };
 
-      const result = await apiClient.login(credentials);
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
+      const result = await apiClient.auth.login({
+        email: 'test@example.com',
+        password: 'password',
+      });
+
+      expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/login',
+        'http://localhost:8080/api/v1/auth/login',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
           }),
-          body: JSON.stringify(credentials),
+          body: JSON.stringify({
+            email: 'test@example.com',
+            password: 'password',
+          }),
         })
       );
-
-      expect(result).toEqual(mockAPIResponses.login.success);
     });
 
-    it('should throw APIError for invalid credentials', async () => {
+    it('should handle login failure with proper error', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
-        json: async () => mockAPIResponses.login.invalidCredentials,
-      });
+        json: async () => ({
+          message: 'Invalid credentials',
+          code: 'invalid_credentials',
+          timestamp: new Date(),
+        }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      const credentials = {
-        email: 'test@example.com',
-        password: 'wrongpassword',
-      };
-
-      await expect(apiClient.login(credentials)).rejects.toThrow(APIError);
+      await expect(
+        apiClient.auth.login({
+          email: 'test@example.com',
+          password: 'wrong-password',
+        })
+      ).rejects.toThrow(APIError);
     });
 
-    it('should handle MFA required response', async () => {
+    it('should refresh token successfully', async () => {
+      const mockResponse = {
+        user: { id: '1', email: 'test@example.com', name: 'Test User', role: 'user' as const, mfaEnabled: false, createdAt: new Date(), updatedAt: new Date() },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+        expiresAt: new Date(),
+      };
+
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 401,
-        json: async () => mockAPIResponses.login.mfaRequired,
-      });
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      const credentials = {
-        email: 'test@example.com',
-        password: 'password123',
-      };
+      const result = await apiClient.auth.refreshToken();
 
-      try {
-        await apiClient.login(credentials);
-      } catch (error) {
-        expect(error).toBeInstanceOf(APIError);
-        expect((error as APIError).code).toBe('MFA_REQUIRED');
-      }
+      expect(result).toEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/auth/refresh',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ refreshToken: 'mock-refresh-token' }),
+        })
+      );
     });
-  });
 
-  describe('logout', () => {
-    it('should successfully logout', async () => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-      
+    it('should logout and clear tokens', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
         json: async () => ({}),
-      });
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      await apiClient.logout();
+      await apiClient.auth.logout();
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/logout',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ refreshToken: 'refresh-token' }),
-        })
-      );
+      expect(mockTokenManager.clearTokens).toHaveBeenCalled();
     });
 
-    it('should clear tokens even if logout request fails', async () => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-      
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+    it('should get current user', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'user' as const,
+        mfaEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
 
-      await apiClient.logout();
-
-      expect(tokenManager.getToken()).toBeNull();
-      expect(tokenManager.getRefreshToken()).toBeNull();
-    });
-  });
-
-  describe('refreshToken', () => {
-    it('should successfully refresh token', async () => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-      
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockAPIResponses.refreshToken.success,
-      });
+        json: async () => mockUser,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      const result = await apiClient.refreshToken();
+      const result = await apiClient.auth.getCurrentUser();
 
+      expect(result).toEqual(mockUser);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/refresh',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ refreshToken: 'refresh-token' }),
-        })
-      );
-
-      expect(result).toEqual(mockAPIResponses.refreshToken.success);
-    });
-
-    it('should throw error when no refresh token is available', async () => {
-      tokenManager.clearTokens();
-
-      await expect(apiClient.refreshToken()).rejects.toThrow(APIError);
-      await expect(apiClient.refreshToken()).rejects.toThrow('No refresh token available');
-    });
-  });
-
-  describe('getCurrentUser', () => {
-    it('should successfully get current user', async () => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-      
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockAPIResponses.getCurrentUser.success,
-      });
-
-      const result = await apiClient.getCurrentUser();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/me',
+        'http://localhost:8080/api/v1/auth/me',
         expect.objectContaining({
           headers: expect.objectContaining({
-            'Authorization': `Bearer ${mockJWTToken}`,
-          }),
-        })
-      );
-
-      expect(result).toEqual(mockAPIResponses.getCurrentUser.success);
-    });
-
-    it('should include authorization header when token is available', async () => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-      
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockAPIResponses.getCurrentUser.success,
-      });
-
-      await apiClient.getCurrentUser();
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Authorization': `Bearer ${mockJWTToken}`,
+            Authorization: 'Bearer mock-token',
           }),
         })
       );
     });
   });
 
-  describe('MFA endpoints', () => {
-    beforeEach(() => {
-      tokenManager.setTokens(mockJWTToken, 'refresh-token');
-    });
+  describe('Documents API', () => {
+    it('should upload documents successfully', async () => {
+      const mockDocuments = [
+        {
+          id: '1',
+          name: 'test.pdf',
+          type: 'application/pdf',
+          size: 1024,
+          uploadedAt: new Date(),
+          userId: '1',
+          status: 'completed' as const,
+          tags: ['test'],
+          metadata: { title: 'Test Document' },
+        },
+      ];
 
-    it('should setup MFA', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockAPIResponses.mfaSetup.success,
-      });
+        json: async () => mockDocuments,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      const result = await apiClient.setupMFA();
+      const file = new File(['test content'], 'test.pdf', { type: 'application/pdf' });
+      const result = await apiClient.documents.upload([
+        {
+          file,
+          metadata: { title: 'Test Document' },
+          tags: ['test'],
+        },
+      ]);
 
+      expect(result).toEqual(mockDocuments);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/setup',
+        'http://localhost:8080/api/v1/documents/upload',
         expect.objectContaining({
           method: 'POST',
+          body: expect.any(FormData),
         })
       );
-
-      expect(result).toEqual(mockAPIResponses.mfaSetup.success);
     });
 
-    it('should verify MFA code', async () => {
+    it('should get documents with filters', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: '1',
+            name: 'test.pdf',
+            type: 'application/pdf',
+            size: 1024,
+            uploadedAt: new Date(),
+            userId: '1',
+            status: 'completed' as const,
+            tags: ['test'],
+            metadata: { title: 'Test Document' },
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockAPIResponses.mfaVerify.success,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.documents.getDocuments({
+        category: 'policy',
+        tags: ['test'],
       });
 
-      const result = await apiClient.verifyMFA('123456');
-
+      expect(result).toEqual(mockResponse);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/verify',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ code: '123456' }),
-        })
+        expect.stringContaining('/api/v1/documents?'),
+        expect.any(Object)
       );
-
-      expect(result).toEqual(mockAPIResponses.mfaVerify.success);
     });
 
-    it('should disable MFA', async () => {
+    it('should search documents', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: '1',
+            name: 'test.pdf',
+            type: 'application/pdf',
+            size: 1024,
+            uploadedAt: new Date(),
+            userId: '1',
+            status: 'completed' as const,
+            tags: ['test'],
+            metadata: { title: 'Test Document' },
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: async () => mockAPIResponses.mfaVerify.success,
-      });
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      const result = await apiClient.disableMFA('123456');
+      const result = await apiClient.documents.searchDocuments('test query');
+
+      expect(result).toEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/documents/search?q=test'),
+        expect.any(Object)
+      );
+    });
+
+    it('should delete document', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      await apiClient.documents.deleteDocument('1');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/disable',
+        'http://localhost:8080/api/v1/documents/1',
         expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ code: '123456' }),
+          method: 'DELETE',
         })
       );
-
-      expect(result).toEqual(mockAPIResponses.mfaVerify.success);
     });
   });
 
-  describe('error handling', () => {
+  describe('Consultations API', () => {
+    it('should create consultation session', async () => {
+      const mockConsultation = {
+        id: '1',
+        title: 'Test Consultation',
+        type: 'policy' as const,
+        status: 'active' as const,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: '1',
+        messages: [],
+        priority: 'medium' as const,
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockConsultation,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.consultations.createSession({
+        type: 'policy',
+        title: 'Test Consultation',
+        priority: 'medium',
+      });
+
+      expect(result).toEqual(mockConsultation);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/consultations',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            type: 'policy',
+            title: 'Test Consultation',
+            priority: 'medium',
+          }),
+        })
+      );
+    });
+
+    it('should send message to consultation', async () => {
+      const mockMessage = {
+        id: '1',
+        sessionId: '1',
+        type: 'user' as const,
+        content: 'Test message',
+        timestamp: new Date(),
+        inputMethod: 'text' as const,
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockMessage,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.consultations.sendMessage('1', {
+        content: 'Test message',
+        inputMethod: 'text',
+      });
+
+      expect(result).toEqual(mockMessage);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/consultations/1/messages',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            content: 'Test message',
+            inputMethod: 'text',
+          }),
+        })
+      );
+    });
+
+    it('should get consultation sessions with filters', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: '1',
+            title: 'Test Consultation',
+            type: 'policy' as const,
+            status: 'active' as const,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            userId: '1',
+            messages: [],
+            priority: 'medium' as const,
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.consultations.getSessions({
+        type: 'policy',
+        status: 'active',
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/consultations?'),
+        expect.any(Object)
+      );
+    });
+  });
+
+  describe('Error Handling and Retry Logic', () => {
     it('should handle network errors', async () => {
       mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-      await expect(apiClient.getCurrentUser()).rejects.toThrow(APIError);
-      await expect(apiClient.getCurrentUser()).rejects.toThrow('Network error');
+      await expect(apiClient.auth.getCurrentUser()).rejects.toThrow(APIError);
     });
 
-    it('should handle HTTP errors with JSON response', async () => {
+    it('should handle timeout errors', async () => {
+      mockFetch.mockImplementationOnce(() => 
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('AbortError')), 100);
+        })
+      );
+
+      await expect(
+        apiClient.auth.getCurrentUser()
+      ).rejects.toThrow(APIError);
+    });
+
+    it('should retry on server errors', async () => {
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 500,
+          json: async () => ({
+            message: 'Internal server error',
+            code: 'server_error',
+            timestamp: new Date(),
+          }),
+          headers: new Headers({ 'content-type': 'application/json' }),
+        } as Response)
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({ id: '1', email: 'test@example.com' }),
+          headers: new Headers({ 'content-type': 'application/json' }),
+        } as Response);
+
+      const result = await apiClient.auth.getCurrentUser();
+
+      expect(result).toEqual({ id: '1', email: 'test@example.com' });
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not retry on client errors', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: async () => ({
           message: 'Bad request',
-          code: 'VALIDATION_ERROR',
-          details: { field: 'email' },
+          code: 'validation_error',
+          timestamp: new Date(),
         }),
-      });
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
 
-      try {
-        await apiClient.getCurrentUser();
-      } catch (error) {
-        expect(error).toBeInstanceOf(APIError);
-        expect((error as APIError).status).toBe(400);
-        expect((error as APIError).code).toBe('VALIDATION_ERROR');
-        expect((error as APIError).details).toEqual({ field: 'email' });
-      }
+      await expect(apiClient.auth.getCurrentUser()).rejects.toThrow(APIError);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
     });
 
-    it('should handle HTTP errors without JSON response', async () => {
+    it('should handle token refresh on 401 errors', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'user' as const,
+        mfaEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      // First call returns 401
+      mockFetch
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          json: async () => ({
+            message: 'Token expired',
+            code: 'token_expired',
+            timestamp: new Date(),
+          }),
+          headers: new Headers({ 'content-type': 'application/json' }),
+        } as Response)
+        // Refresh token call
+        .mockResolvedValueOnce({
+          ok: true,
+          json: async () => ({
+            user: mockUser,
+            token: 'new-token',
+            refreshToken: 'new-refresh-token',
+            expiresAt: new Date(),
+          }),
+          headers: new Headers({ 'content-type': 'application/json' }),
+        } as Response);
+
+      // The interceptor should trigger token refresh
+      await expect(apiClient.auth.getCurrentUser()).rejects.toThrow(APIError);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should include authorization header when token is available', async () => {
       mockFetch.mockResolvedValueOnce({
-        ok: false,
-        status: 500,
-        json: async () => {
-          throw new Error('Invalid JSON');
-        },
+        ok: true,
+        json: async () => ({ id: '1', email: 'test@example.com' }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      await apiClient.auth.getCurrentUser();
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/auth/me',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+        })
+      );
+    });
+
+    it('should skip auth header when skipAuth is true', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ token: 'new-token' }),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      await apiClient.auth.login({
+        email: 'test@example.com',
+        password: 'password',
       });
 
-      try {
-        await apiClient.getCurrentUser();
-      } catch (error) {
-        expect(error).toBeInstanceOf(APIError);
-        expect((error as APIError).status).toBe(500);
-        expect((error as APIError).message).toBe('HTTP 500');
-      }
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/auth/login',
+        expect.objectContaining({
+          headers: expect.not.objectContaining({
+            Authorization: expect.any(String),
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Users API', () => {
+    it('should get users with filters', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: '1',
+            email: 'test@example.com',
+            name: 'Test User',
+            role: 'user' as const,
+            mfaEnabled: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.users.getUsers({
+        role: 'user',
+        department: 'IT',
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/users?'),
+        expect.any(Object)
+      );
+    });
+
+    it('should create user', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'new@example.com',
+        name: 'New User',
+        role: 'user' as const,
+        mfaEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUser,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.users.createUser({
+        name: 'New User',
+        email: 'new@example.com',
+        password: 'password123',
+        role: 'user',
+      });
+
+      expect(result).toEqual(mockUser);
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://localhost:8080/api/v1/users',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'New User',
+            email: 'new@example.com',
+            password: 'password123',
+            role: 'user',
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Audit API', () => {
+    it('should get audit logs with filters', async () => {
+      const mockResponse = {
+        data: [
+          {
+            id: '1',
+            userId: '1',
+            action: 'login',
+            resource: 'auth',
+            details: {},
+            timestamp: new Date(),
+          },
+        ],
+        pagination: {
+          page: 1,
+          limit: 10,
+          total: 1,
+          totalPages: 1,
+        },
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.audit.getLogs({
+        userId: '1',
+        action: 'login',
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/audit?'),
+        expect.any(Object)
+      );
+    });
+
+    it('should export audit logs', async () => {
+      const mockBlob = new Blob(['csv data'], { type: 'text/csv' });
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        blob: async () => mockBlob,
+      } as Response);
+
+      const result = await apiClient.audit.exportLogs({}, 'csv');
+
+      expect(result).toEqual(mockBlob);
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('/api/v1/audit/export?format=csv'),
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer mock-token',
+          }),
+        })
+      );
+    });
+  });
+
+  describe('Legacy Methods', () => {
+    it('should maintain backward compatibility for login', async () => {
+      const mockResponse = {
+        user: { id: '1', email: 'test@example.com', name: 'Test User', role: 'user' as const, mfaEnabled: false, createdAt: new Date(), updatedAt: new Date() },
+        token: 'new-token',
+        refreshToken: 'new-refresh-token',
+        expiresAt: new Date(),
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.login({
+        email: 'test@example.com',
+        password: 'password',
+      });
+
+      expect(result).toEqual(mockResponse);
+    });
+
+    it('should maintain backward compatibility for logout', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      await apiClient.logout();
+
+      expect(mockTokenManager.clearTokens).toHaveBeenCalled();
+    });
+
+    it('should maintain backward compatibility for getCurrentUser', async () => {
+      const mockUser = {
+        id: '1',
+        email: 'test@example.com',
+        name: 'Test User',
+        role: 'user' as const,
+        mfaEnabled: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockUser,
+        headers: new Headers({ 'content-type': 'application/json' }),
+      } as Response);
+
+      const result = await apiClient.getCurrentUser();
+
+      expect(result).toEqual(mockUser);
     });
   });
 });

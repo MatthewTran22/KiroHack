@@ -13,11 +13,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 )
 
+// PasswordHasher defines the interface for password hashing services
+type PasswordHasher interface {
+	HashPassword(password string) (string, error)
+	VerifyPassword(password, hash string) error
+	ValidatePassword(password string) error
+}
+
 // AuthService provides authentication and authorization functionality
 type AuthService struct {
 	userCollection  *mongo.Collection
 	jwtService      *JWTService
-	passwordService *PasswordService
+	passwordService PasswordHasher
 	mfaService      *MFAService
 	sessionService  *SessionService
 }
@@ -36,7 +43,7 @@ func NewAuthService(
 		jwtConfig.Issuer,
 	)
 
-	passwordService := NewPasswordService()
+	passwordService := NewArgon2PasswordService()
 	mfaService := NewMFAService(jwtConfig.Issuer)
 	sessionService := NewSessionService(redisClient, jwtConfig.SessionTTL, jwtConfig.BlacklistTTL)
 

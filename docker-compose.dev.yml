@@ -8,6 +8,7 @@ services:
       - LOG_FORMAT=text
       - JWT_ACCESS_SECRET=dev-access-secret-change-in-production
       - JWT_REFRESH_SECRET=dev-refresh-secret-change-in-production
+      - REDIS_PASSWORD=devpassword
     volumes:
       # Mount source code for hot reloading (if using air or similar)
       - .:/app

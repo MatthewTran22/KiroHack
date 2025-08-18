@@ -12,8 +12,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useAuth, useRedirectIfAuthenticated } from '@/hooks/useAuth';
+import { useAuth } from '@/hooks/useAuth';
 import { ROUTES } from '@/lib/constants';
+import { apiClient } from '@/lib/api';
+import { tokenManager } from '@/lib/auth';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -27,14 +29,13 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showMFA, setShowMFA] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || ROUTES.DASHBOARD;
 
-  const { login, error, isLoading, isLocked, clearError, resetLoginAttempts } = useAuth();
+  const { error, isLoading, isLocked, clearError, resetLoginAttempts } = useAuth();
   
-  // Redirect if already authenticated
-  useRedirectIfAuthenticated();
+  // Note: Removed automatic redirect check to prevent infinite loops
+  // Users can manually navigate to dashboard if already authenticated
 
   const {
     register,
@@ -59,9 +60,29 @@ export default function LoginPage() {
       clearError();
       clearErrors();
       
-      await login(data);
-      router.push(redirectTo);
+      // Call API directly to get response
+      const loginCredentials: any = {
+        email: data.email,
+        password: data.password
+      };
+      
+      // Only include mfaCode if it's provided
+      if (data.mfaCode) {
+        loginCredentials.mfaCode = data.mfaCode;
+      }
+      
+      const response = await apiClient.auth.login(loginCredentials);
+      
+      // Store tokens directly
+      tokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token);
+      
+      // Instead of trying to update state manually, use window.location for redirect
+      // This will cause a full page navigation which will re-evaluate auth state
+      window.location.href = redirectTo;
+      
     } catch (err: unknown) {
+      // Handle login errors
+      console.error('Login error:', err);
       if (err && typeof err === 'object' && 'status' in err) {
         const error = err as { status: number; code?: string; message?: string; details?: { field?: string } };
         if (error.status === 401 && error.code === 'MFA_REQUIRED') {

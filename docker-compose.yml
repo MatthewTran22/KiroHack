@@ -11,10 +11,11 @@ services:
     environment:
       - SERVER_PORT=8080
       - SERVER_HOST=0.0.0.0
-      - MONGO_URI=mongodb://mongodb:27017
+      - MONGO_URI=mongodb://admin:password@mongodb:27017/ai_government_consultant?authSource=admin
       - MONGO_DATABASE=ai_government_consultant
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=password
       - LOG_LEVEL=info
       - LOG_FORMAT=json
       - JWT_SECRET=your-jwt-secret-change-in-production
