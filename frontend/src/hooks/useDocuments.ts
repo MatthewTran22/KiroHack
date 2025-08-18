@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { apiClient } from '@/lib/api';
+import { tokenManager } from '@/lib/auth';
 import { useDocumentStore } from '@/stores/documents';
 import { Document, PaginatedResponse } from '@/types';
 import type { DocumentFilters, DocumentSortOption } from '@/stores/documents';
@@ -24,9 +25,11 @@ const documentsAPI = {
       params.append('sortOrder', sort.direction);
     }
 
-    const response = await fetch(`/api/documents?${params.toString()}`, {
+    const token = tokenManager.getToken();
+    const response = await fetch(`http://localhost:8080/api/v1/documents?${params.toString()}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
 
@@ -38,9 +41,11 @@ const documentsAPI = {
   },
 
   async getDocument(id: string): Promise<Document> {
-    const response = await fetch(`/api/documents/${id}`, {
+    const token = tokenManager.getToken();
+    const response = await fetch(`http://localhost:8080/api/v1/documents/${id}`, {
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
       },
     });
 
