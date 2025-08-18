@@ -1,14 +1,24 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuthStore } from '@/stores/auth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, User, MessageSquare, FileText, History, TrendingUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { tokenManager } from '@/lib/auth';
+import { ROUTES } from '@/lib/constants';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const router = useRouter();
+
+  // Client-side authentication check
+  useEffect(() => {
+    if (!tokenManager.isTokenValid()) {
+      router.push(ROUTES.LOGIN);
+    }
+  }, [router]);
 
   const handleMFASetup = () => {
     router.push('/mfa-setup');
@@ -122,14 +132,14 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <span>Two-Factor Authentication</span>
               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                user?.mfaEnabled 
+                user?.mfa_enabled 
                   ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
                   : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
               }`}>
-                {user?.mfaEnabled ? 'Enabled' : 'Disabled'}
+                {user?.mfa_enabled ? 'Enabled' : 'Disabled'}
               </span>
             </div>
-            {!user?.mfaEnabled && (
+            {!user?.mfa_enabled && (
               <Button onClick={handleMFASetup} variant="outline" className="w-full">
                 Set Up MFA
               </Button>

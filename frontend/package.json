@@ -15,6 +15,7 @@
     "test:coverage": "jest --coverage",
     "test:auth": "node scripts/test-auth.js test",
     "test:integration": "INTEGRATION_TEST=true jest --testPathPatterns=integration",
+    "test:api-integration": "node scripts/test-api-integration.js",
     "test:state-management": "node scripts/test-state-management-integration.js",
     "type-check": "tsc --noEmit"
   },

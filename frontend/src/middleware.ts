@@ -57,6 +57,11 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = token ? isTokenValid(token) : false;
   const tokenPayload = token ? getTokenPayload(token) : null;
 
+  // Temporarily disable middleware redirects to stop the loop
+  // We'll handle authentication purely client-side for now
+  // TODO: Re-enable this once we fix the token sync between client and server
+  
+  /*
   // Handle protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
     if (!isAuthenticated) {
@@ -77,6 +82,7 @@ export function middleware(request: NextRequest) {
   if (authRoutes.includes(pathname) && isAuthenticated) {
     return NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url));
   }
+  */
 
   // Add security headers
   const response = NextResponse.next();
