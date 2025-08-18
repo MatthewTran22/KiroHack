@@ -27,7 +27,7 @@ describe('APIClient', () => {
       const result = await apiClient.login(credentials);
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/login',
+        'http://localhost:8080/api/v1/auth/login',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
@@ -88,7 +88,7 @@ describe('APIClient', () => {
       await apiClient.logout();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/logout',
+        'http://localhost:8080/api/v1/auth/logout',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ refreshToken: 'refresh-token' }),
@@ -120,7 +120,7 @@ describe('APIClient', () => {
       const result = await apiClient.refreshToken();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/refresh',
+        'http://localhost:8080/api/v1/auth/refresh',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ refreshToken: 'refresh-token' }),
@@ -150,7 +150,7 @@ describe('APIClient', () => {
       const result = await apiClient.getCurrentUser();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/me',
+        'http://localhost:8080/api/v1/auth/me',
         expect.objectContaining({
           headers: expect.objectContaining({
             'Authorization': `Bearer ${mockJWTToken}`,
@@ -196,7 +196,7 @@ describe('APIClient', () => {
       const result = await apiClient.setupMFA();
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/setup',
+        'http://localhost:8080/api/v1/auth/mfa/setup',
         expect.objectContaining({
           method: 'POST',
         })
@@ -214,7 +214,7 @@ describe('APIClient', () => {
       const result = await apiClient.verifyMFA('123456');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/verify',
+        'http://localhost:8080/api/v1/auth/mfa/verify',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ code: '123456' }),
@@ -233,7 +233,7 @@ describe('APIClient', () => {
       const result = await apiClient.disableMFA('123456');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/auth/mfa/disable',
+        'http://localhost:8080/api/v1/auth/mfa/disable',
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ code: '123456' }),

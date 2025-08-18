@@ -61,7 +61,7 @@ class APIClient {
 
   // Authentication endpoints
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    return this.request<AuthResponse>('/api/auth/login', {
+    return this.request<AuthResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -71,7 +71,7 @@ class APIClient {
     const refreshToken = tokenManager.getRefreshToken();
     if (refreshToken) {
       try {
-        await this.request('/api/auth/logout', {
+        await this.request('/api/v1/auth/logout', {
           method: 'POST',
           body: JSON.stringify({ refreshToken }),
         });
@@ -89,31 +89,31 @@ class APIClient {
       throw new APIError('No refresh token available', 401);
     }
 
-    return this.request<AuthResponse>('/api/auth/refresh', {
+    return this.request<AuthResponse>('/api/v1/auth/refresh', {
       method: 'POST',
       body: JSON.stringify({ refreshToken }),
     });
   }
 
   async getCurrentUser(): Promise<User> {
-    return this.request<User>('/api/auth/me');
+    return this.request<User>('/api/v1/auth/me');
   }
 
   async setupMFA(): Promise<MFASetupResponse> {
-    return this.request<MFASetupResponse>('/api/auth/mfa/setup', {
+    return this.request<MFASetupResponse>('/api/v1/auth/mfa/setup', {
       method: 'POST',
     });
   }
 
   async verifyMFA(code: string): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>('/api/auth/mfa/verify', {
+    return this.request<{ success: boolean }>('/api/v1/auth/mfa/verify', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });
   }
 
   async disableMFA(code: string): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>('/api/auth/mfa/disable', {
+    return this.request<{ success: boolean }>('/api/v1/auth/mfa/disable', {
       method: 'POST',
       body: JSON.stringify({ code }),
     });

@@ -88,7 +88,7 @@ func createDefaultAdminUser(ctx context.Context, db *MongoDB) error {
 			},
 		},
 		SecurityClearance: models.SecurityClearanceTopSecret,
-		PasswordHash:      "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewdBPj8xLs9qobKC", // "admin123" - should be changed in production
+		PasswordHash:      "$argon2id$v=19$m=65536,t=1,p=4$5QujEUZ0kB3LqoHau7NqCw$KucZx82aAFvtQVOH9Hxqyz4PJwExBD06JOk/k2DEO3E", // "Admin123!" - should be changed in production
 		CreatedAt:         now,
 		UpdatedAt:         now,
 		IsActive:          true,

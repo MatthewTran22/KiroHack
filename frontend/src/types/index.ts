@@ -118,3 +118,44 @@ export interface SearchResult {
   relevance: number;
 }
 
+// Enhanced state management types
+export interface LoadingState {
+  [key: string]: boolean;
+}
+
+export interface ErrorState {
+  [key: string]: string | null;
+}
+
+export interface CacheMetadata {
+  timestamp: number;
+  ttl: number;
+  version: string;
+}
+
+export interface OptimisticUpdate<T> {
+  id: string;
+  queryKey: unknown[];
+  previousData: T | undefined;
+  optimisticData: T;
+  timestamp: number;
+}
+
+export interface SyncStatus {
+  isOnline: boolean;
+  lastSync: Date | null;
+  pendingOperations: number;
+  failedOperations: number;
+}
+
+export interface AppState {
+  loading: LoadingState;
+  errors: ErrorState;
+  sync: SyncStatus;
+  cache: {
+    metadata: Record<string, CacheMetadata>;
+    size: number;
+    maxSize: number;
+  };
+}
+
