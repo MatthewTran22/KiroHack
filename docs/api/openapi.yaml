@@ -1,0 +1,857 @@
+openapi: 3.0.3
+info:
+  title: AI Government Consultant API
+  description: |
+    REST API for the AI-powered government consulting platform that provides expert advice 
+    and guidance to government agencies and organizations.
+  version: 1.0.0
+  contact:
+    name: AI Government Consultant Support
+    email: support@ai-gov-consultant.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Development server
+  - url: https://api.ai-gov-consultant.com/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  # Health endpoints
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the health status of the API
+      security: []
+      responses:
+        '200':
+          description: API is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      tags:
+        - Health
+      summary: Readiness check
+      description: Returns the readiness status of the API and its dependencies
+      security: []
+      responses:
+        '200':
+          description: API is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  # Authentication endpoints
+  /auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticates a user and returns access tokens
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Logs out the current user and invalidates tokens
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/profile:
+    get:
+      tags:
+        - Authentication
+      summary: Get user profile
+      description: Returns the current user's profile information
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  # Document endpoints
+  /documents:
+    get:
+      tags:
+        - Documents
+      summary: List documents
+      description: Returns a paginated list of documents
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Documents retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentListResponse'
+
+    post:
+      tags:
+        - Documents
+      summary: Upload document
+      description: Uploads a new document for processing
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DocumentUploadRequest'
+      responses:
+        '201':
+          description: Document uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentUploadResponse'
+
+  /documents/{id}:
+    get:
+      tags:
+        - Documents
+      summary: Get document
+      description: Returns a specific document by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Document retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Document'
+        '404':
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # Consultation endpoints
+  /consultations:
+    get:
+      tags:
+        - Consultations
+      summary: List consultations
+      description: Returns a paginated list of consultation sessions
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Consultations retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultationListResponse'
+
+    post:
+      tags:
+        - Consultations
+      summary: Create consultation
+      description: Creates a new consultation session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConsultationRequest'
+      responses:
+        '201':
+          description: Consultation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultationResponse'
+
+  # Knowledge endpoints
+  /knowledge:
+    get:
+      tags:
+        - Knowledge
+      summary: List knowledge items
+      description: Returns a paginated list of knowledge items
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/KnowledgeType'
+      responses:
+        '200':
+          description: Knowledge items retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeListResponse'
+
+    post:
+      tags:
+        - Knowledge
+      summary: Create knowledge item
+      description: Creates a new knowledge item
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateKnowledgeRequest'
+      responses:
+        '201':
+          description: Knowledge item created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KnowledgeItemResponse'
+
+  # Audit endpoints
+  /audit/logs:
+    get:
+      tags:
+        - Audit
+      summary: Get audit logs
+      description: Returns audit logs based on search criteria
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: skip
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: user_id
+          in: query
+          schema:
+            type: string
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: date_from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: date_to
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Audit logs retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuditLogResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # Common schemas
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+
+    # Health schemas
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+        version:
+          type: string
+          example: 1.0.0
+        service:
+          type: string
+          example: ai-government-consultant
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ready
+        checks:
+          type: object
+          properties:
+            database:
+              type: string
+              example: ok
+            redis:
+              type: string
+              example: ok
+            ai_service:
+              type: string
+              example: ok
+
+    # Authentication schemas
+    RegisterRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+        department:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        security_clearance:
+          $ref: '#/components/schemas/SecurityClearance'
+        password:
+          type: string
+          minLength: 8
+      required:
+        - email
+        - name
+        - department
+        - role
+        - security_clearance
+        - password
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        mfa_code:
+          type: string
+      required:
+        - email
+        - password
+
+    LoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+        session_id:
+          type: string
+
+    TokenPair:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+
+    UserProfile:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        name:
+          type: string
+        department:
+          type: string
+        role:
+          $ref: '#/components/schemas/UserRole'
+        security_clearance:
+          $ref: '#/components/schemas/SecurityClearance'
+        last_login:
+          type: string
+          format: date-time
+        is_active:
+          type: boolean
+        mfa_enabled:
+          type: boolean
+
+    UserRole:
+      type: string
+      enum:
+        - admin
+        - analyst
+        - manager
+        - viewer
+        - consultant
+
+    SecurityClearance:
+      type: string
+      enum:
+        - public
+        - internal
+        - confidential
+        - secret
+        - top_secret
+
+    # Document schemas
+    DocumentUploadRequest:
+      type: object
+      properties:
+        file:
+          type: string
+          format: binary
+        title:
+          type: string
+        author:
+          type: string
+        department:
+          type: string
+        category:
+          $ref: '#/components/schemas/DocumentCategory'
+        tags:
+          type: string
+        language:
+          type: string
+      required:
+        - file
+        - category
+
+    DocumentUploadResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            document_id:
+              type: string
+            status:
+              type: string
+
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        content_type:
+          type: string
+        size:
+          type: integer
+        uploaded_by:
+          type: string
+        uploaded_at:
+          type: string
+          format: date-time
+        classification:
+          $ref: '#/components/schemas/SecurityClassification'
+        metadata:
+          $ref: '#/components/schemas/DocumentMetadata'
+        processing_status:
+          $ref: '#/components/schemas/ProcessingStatus'
+
+    DocumentCategory:
+      type: string
+      enum:
+        - policy
+        - strategy
+        - operations
+        - technology
+        - general
+
+    ProcessingStatus:
+      type: string
+      enum:
+        - pending
+        - processing
+        - completed
+        - failed
+
+    SecurityClassification:
+      type: object
+      properties:
+        level:
+          type: string
+        compartments:
+          type: array
+          items:
+            type: string
+        handling:
+          type: array
+          items:
+            type: string
+
+    DocumentMetadata:
+      type: object
+      properties:
+        title:
+          type: string
+        author:
+          type: string
+        department:
+          type: string
+        category:
+          $ref: '#/components/schemas/DocumentCategory'
+        tags:
+          type: array
+          items:
+            type: string
+        language:
+          type: string
+
+    DocumentListResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Document'
+        total:
+          type: integer
+        limit:
+          type: integer
+        skip:
+          type: integer
+
+    # Consultation schemas
+    CreateConsultationRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        type:
+          $ref: '#/components/schemas/ConsultationType'
+        max_sources:
+          type: integer
+        confidence_threshold:
+          type: number
+        tags:
+          type: array
+          items:
+            type: string
+      required:
+        - query
+        - type
+
+    ConsultationType:
+      type: string
+      enum:
+        - policy
+        - strategy
+        - operations
+        - technology
+        - general
+
+    ConsultationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            session_id:
+              type: string
+            session:
+              $ref: '#/components/schemas/ConsultationSession'
+
+    ConsultationSession:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        type:
+          $ref: '#/components/schemas/ConsultationType'
+        query:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ConsultationListResponse:
+      type: object
+      properties:
+        consultations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsultationSession'
+        total:
+          type: integer
+        limit:
+          type: integer
+        skip:
+          type: integer
+
+    # Knowledge schemas
+    CreateKnowledgeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          $ref: '#/components/schemas/KnowledgeType'
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        metadata:
+          type: object
+      required:
+        - title
+        - content
+        - type
+
+    KnowledgeType:
+      type: string
+      enum:
+        - fact
+        - procedure
+        - policy
+        - regulation
+        - best_practice
+        - case_study
+        - reference
+
+    KnowledgeItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        type:
+          $ref: '#/components/schemas/KnowledgeType'
+        category:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        created_by:
+          type: string
+
+    KnowledgeItemResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            knowledge_id:
+              type: string
+            knowledge:
+              $ref: '#/components/schemas/KnowledgeItem'
+
+    KnowledgeListResponse:
+      type: object
+      properties:
+        knowledge_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/KnowledgeItem'
+        total:
+          type: integer
+        limit:
+          type: integer
+        skip:
+          type: integer
+
+    # Audit schemas
+    AuditLogResponse:
+      type: object
+      properties:
+        audit_logs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AuditEntry'
+        total:
+          type: integer
+        limit:
+          type: integer
+        skip:
+          type: integer
+
+    AuditEntry:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        action:
+          type: string
+        resource:
+          type: string
+        result:
+          type: string
+        ip_address:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        details:
+          type: object
+
+tags:
+  - name: Health
+    description: Health and readiness checks
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Documents
+    description: Document management operations
+  - name: Consultations
+    description: AI consultation operations
+  - name: Knowledge
+    description: Knowledge management operations
+  - name: Audit
+    description: Audit and reporting operations

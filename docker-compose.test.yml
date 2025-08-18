@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Test MongoDB database
+  test-mongodb:
+    image: mongo:7.0
+    ports:
+      - "27018:27017"  # Use different port to avoid conflicts
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=testadmin
+      - MONGO_INITDB_ROOT_PASSWORD=testpassword
+      - MONGO_INITDB_DATABASE=ai_government_consultant_test
+    volumes:
+      - test_mongodb_data:/data/db
+    networks:
+      - test-network
+    restart: unless-stopped
+    command: >
+      mongod 
+      --auth 
+      --bind_ip_all 
+      --port 27017
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Test Redis cache
+  test-redis:
+    image: redis:7.2-alpine
+    ports:
+      - "6380:6379"  # Use different port to avoid conflicts
+    command: >
+      redis-server 
+      --appendonly yes 
+      --requirepass testpassword
+      --bind 0.0.0.0
+      --protected-mode yes
+      --port 6379
+    volumes:
+      - test_redis_data:/data
+    networks:
+      - test-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "testpassword", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Test runner service
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - TEST_MONGO_URI=mongodb://testadmin:testpassword@test-mongodb:27017/ai_government_consultant_test?authSource=admin
+      - TEST_REDIS_HOST=test-redis
+      - TEST_REDIS_PORT=6379
+      - TEST_REDIS_PASSWORD=testpassword
+      - TEST_LLM_API_KEY=test-key-for-integration-tests
+      - GO_ENV=test
+    depends_on:
+      test-mongodb:
+        condition: service_healthy
+      test-redis:
+        condition: service_healthy
+    networks:
+      - test-network
+    volumes:
+      - .:/app
+      - /app/bin  # Exclude bin directory
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 5 &&
+        echo 'Running integration tests...' &&
+        go test -v ./test/integration/... -timeout=30m
+      "
+
+volumes:
+  test_mongodb_data:
+    driver: local
+  test_redis_data:
+    driver: local
+
+networks:
+  test-network:
+    driver: bridge
