@@ -1,10 +1,23 @@
-# Design Document
+# Frontend Design Document
 
 ## Overview
 
-The AI Government Consultant frontend is a modern, responsive web application built with Next.js 14 (App Router), TypeScript, and Shadcn UI components. The application provides an intuitive interface for government officials to interact with the AI consultation system, featuring real-time chat interfaces, document management, and comprehensive dashboards.
+The AI Government Consultant frontend is a modern, responsive web application built with Next.js 15 (App Router), React 19, TypeScript, and Shadcn UI components. The application provides an intuitive interface for government officials to interact with the AI consultation system, featuring document management, user authentication, and a comprehensive dashboard.
 
-The frontend follows a component-based architecture with server-side rendering for optimal performance and SEO. It integrates seamlessly with the existing Go backend API through RESTful endpoints and WebSocket connections for real-time features. The design emphasizes accessibility, security, and responsive design to ensure usability across all devices and user capabilities.
+The frontend follows a component-based architecture with client-side rendering and integrates with the existing Go backend API through RESTful endpoints. The design emphasizes accessibility, security, and responsive design to ensure usability across all devices and user capabilities.
+
+**Current Implementation Status:**
+- ✅ Authentication system with JWT tokens and MFA support
+- ✅ Document management with upload, filtering, and search
+- ✅ User dashboard with profile management
+- ✅ Responsive layout with header, sidebar, and main content areas
+- ✅ State management with Zustand stores
+- ✅ API client with error handling and retry logic
+- ✅ Comprehensive testing setup with Jest and React Testing Library
+- 🚧 Consultation interface (placeholder implementation)
+- ❌ Real-time chat functionality
+- ❌ Voice interaction capabilities
+- ❌ WebSocket integration
 
 ## Architecture
 
@@ -14,703 +27,653 @@ The frontend follows a component-based architecture with server-side rendering f
 graph TB
     subgraph "Client Browser"
         BROWSER[Web Browser]
-        PWA[Progressive Web App]
     end
     
     subgraph "Next.js Frontend"
         PAGES[App Router Pages]
         COMPONENTS[React Components]
         HOOKS[Custom Hooks]
-        CONTEXT[Context Providers]
+        PROVIDERS[Context Providers]
         MIDDLEWARE[Next.js Middleware]
     end
     
     subgraph "State Management"
-        ZUSTAND[Zustand Store]
+        ZUSTAND[Zustand Stores]
         REACT_QUERY[TanStack Query]
-        LOCAL_STORAGE[Local Storage]
+        TOKEN_MANAGER[Token Manager]
     end
     
     subgraph "UI Layer"
         SHADCN[Shadcn UI Components]
-        TAILWIND[Tailwind CSS]
-        FRAMER[Framer Motion]
+        TAILWIND[Tailwind CSS v4]
+        THEMES[Next Themes]
         ICONS[Lucide Icons]
     end
     
     subgraph "API Layer"
-        API_CLIENT[API Client]
-        WEBSOCKET[WebSocket Client]
-        AUTH_CLIENT[Auth Client]
+        API_CLIENT[API Client with Retry Logic]
+        AUTH_CLIENT[Authentication Client]
+        ERROR_HANDLER[Error Handler]
     end
     
     subgraph "Backend Services"
-        GO_API[Go Backend API]
-        WEBSOCKET_SERVER[WebSocket Server]
-        AUTH_SERVICE[Authentication Service]
+        GO_API[Go Backend API :8080]
+        AUTH_SERVICE[JWT Authentication]
+        DOCUMENT_SERVICE[Document Management]
+        CONSULTATION_SERVICE[Consultation Service]
     end
     
-    BROWSER --> PWA
-    PWA --> PAGES
+    BROWSER --> PAGES
     PAGES --> COMPONENTS
     COMPONENTS --> HOOKS
     COMPONENTS --> SHADCN
     HOOKS --> ZUSTAND
     HOOKS --> REACT_QUERY
-    CONTEXT --> AUTH_CLIENT
+    PROVIDERS --> AUTH_CLIENT
     MIDDLEWARE --> AUTH_SERVICE
     API_CLIENT --> GO_API
-    WEBSOCKET --> WEBSOCKET_SERVER
     REACT_QUERY --> API_CLIENT
+    ERROR_HANDLER --> API_CLIENT
 ```
 
 ### Component Architecture
 
 ```mermaid
 graph TB
-    subgraph "Layout Components"
-        LAYOUT[RootLayout]
-        HEADER[Header]
-        SIDEBAR[Sidebar]
-        FOOTER[Footer]
+    subgraph "Layout Components (Implemented)"
+        LAYOUT[RootLayout + ErrorBoundary]
+        HEADER[Header with Search & User Menu]
+        SIDEBAR[Collapsible Sidebar]
     end
     
-    subgraph "Page Components"
-        DASHBOARD[Dashboard]
-        CONSULTATION[Consultation]
-        DOCUMENTS[Documents]
-        HISTORY[History]
-        PROFILE[Profile]
+    subgraph "Page Components (Implemented)"
+        HOME[Home - Redirect Logic]
+        LOGIN[Login with MFA]
+        DASHBOARD[Dashboard with Stats]
+        DOCUMENTS[Documents Management]
+        CONSULTATION[Consultation - Placeholder]
+        SETTINGS[Settings]
+        MFA_SETUP[MFA Setup]
     end
     
-    subgraph "Feature Components"
-        CHAT[ChatInterface]
-        UPLOAD[DocumentUpload]
-        SEARCH[SearchBar]
-        NOTIFICATIONS[NotificationCenter]
+    subgraph "Feature Components (Implemented)"
+        DOC_UPLOAD[DocumentUpload with Dropzone]
+        DOC_GRID[DocumentGrid]
+        DOC_LIST[DocumentList]
+        DOC_FILTERS[DocumentFilters]
+        DOC_PREVIEW[DocumentPreview]
+        THEME_PROVIDER[ThemeProvider]
+        QUERY_PROVIDER[QueryProvider]
     end
     
     subgraph "UI Components (Shadcn)"
         BUTTON[Button]
         INPUT[Input]
-        DIALOG[Dialog]
-        TABLE[Table]
         CARD[Card]
-        FORM[Form]
+        DIALOG[Dialog]
+        DROPDOWN[DropdownMenu]
+        AVATAR[Avatar]
+        BADGE[Badge]
+        PROGRESS[Progress]
+        TABS[Tabs]
+        SELECT[Select]
+        TEXTAREA[Textarea]
     end
     
     LAYOUT --> HEADER
     LAYOUT --> SIDEBAR
-    LAYOUT --> FOOTER
     LAYOUT --> DASHBOARD
-    LAYOUT --> CONSULTATION
     LAYOUT --> DOCUMENTS
-    LAYOUT --> HISTORY
-    LAYOUT --> PROFILE
+    LAYOUT --> CONSULTATION
     
-    CONSULTATION --> CHAT
-    DOCUMENTS --> UPLOAD
-    DASHBOARD --> SEARCH
-    HEADER --> NOTIFICATIONS
+    DOCUMENTS --> DOC_UPLOAD
+    DOCUMENTS --> DOC_GRID
+    DOCUMENTS --> DOC_LIST
+    DOCUMENTS --> DOC_FILTERS
+    DOCUMENTS --> DOC_PREVIEW
     
-    CHAT --> BUTTON
-    CHAT --> INPUT
-    UPLOAD --> DIALOG
-    SEARCH --> TABLE
-    NOTIFICATIONS --> CARD
+    HEADER --> DROPDOWN
+    HEADER --> AVATAR
+    HEADER --> BADGE
+    
+    DOC_UPLOAD --> DIALOG
+    DOC_UPLOAD --> PROGRESS
+    DOC_UPLOAD --> CARD
 ```
 
 ## Components and Interfaces
 
-### Core Layout Components
+### Core Layout Components (Implemented)
 
 **RootLayout Component**
 - Provides global layout structure with header, sidebar, and main content area
-- Manages authentication state and route protection
-- Implements responsive design breakpoints
-- Handles global error boundaries and loading states
+- Manages authentication state and route protection with automatic redirects
+- Implements responsive design breakpoints for mobile/desktop
+- Includes LayoutErrorBoundary for error handling
+- Handles loading states during authentication checks
 
 ```typescript
 interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-interface LayoutState {
-  sidebarOpen: boolean;
-  user: User | null;
-  notifications: Notification[];
-  theme: 'light' | 'dark' | 'system';
-}
+// Implemented with authentication flow:
+// - Checks auth status on mount
+// - Redirects unauthenticated users to login
+// - Redirects authenticated users from login to dashboard
+// - Shows loading spinner during auth checks
 ```
 
-**Header Component**
-- Contains navigation, user profile, and notification center
-- Implements search functionality across all content
-- Provides quick access to new consultation and document upload
-- Manages user session and logout functionality
+**Header Component (Implemented)**
+- Contains responsive navigation with mobile menu toggle
+- Implements global search with dropdown results
+- Provides quick access buttons for new consultation and document upload
+- User dropdown menu with profile, settings, and logout
+- Theme toggle (light/dark mode)
+- Notification bell with unread count badge
+- Responsive design with mobile-optimized layout
 
 ```typescript
 interface HeaderProps {
-  user: User;
-  onSearch: (query: string) => void;
-  onNewConsultation: () => void;
-  onLogout: () => void;
+  onSearch?: (query: string) => void;
+  onNewConsultation?: () => void;
+  searchResults?: SearchResult[];
+  isSearching?: boolean;
 }
+
+// Features implemented:
+// - Global search with real-time results
+// - User avatar with initials fallback
+// - Notification system integration
+// - Theme switching
+// - Mobile-responsive design
+// - Quick action buttons
 ```
 
-**Sidebar Component**
-- Navigation menu with role-based visibility
-- Recent consultations and quick access links
-- Collapsible design for mobile responsiveness
-- Integration with routing and active state management
+**Sidebar Component (Implemented)**
+- Navigation menu with role-based visibility (admin-only routes)
+- Active route highlighting with proper ARIA attributes
+- Collapsible design with mobile overlay
+- User profile display at bottom
+- Badge support for item counts
+- Keyboard navigation support
 
 ```typescript
 interface SidebarProps {
-  isOpen: boolean;
-  onToggle: () => void;
-  currentPath: string;
-  userRole: UserRole;
+  className?: string;
 }
+
+// Navigation items implemented:
+// - Dashboard, New Consultation, Documents, History
+// - Settings (always visible)
+// - Admin-only: Analytics, User Management, Audit Trail
+// - Role-based filtering with user.role check
+// - Mobile-responsive with overlay and close button
 ```
 
-### Page Components
+### Page Components (Implemented)
 
 **Dashboard Component**
-- Overview of recent activity, pending consultations, and system status
-- Quick action cards for common tasks
-- Personalized recommendations and insights
-- Real-time updates for consultation status
+- Welcome message with user name
+- Statistics cards showing consultation and document metrics
+- User profile information card with security settings
+- MFA setup integration with conditional display
+- Quick action buttons for common tasks
+- Recent activity timeline (static data for now)
+- Client-side authentication check with redirect
 
 ```typescript
-interface DashboardProps {
-  user: User;
-  recentConsultations: ConsultationSummary[];
-  pendingDocuments: DocumentSummary[];
-  systemStatus: SystemStatus;
-}
+// No props - uses auth store directly
+export default function DashboardPage()
 
-interface DashboardState {
-  loading: boolean;
-  error: string | null;
-  refreshInterval: number;
-}
+// Features implemented:
+// - Stats grid with icons and colors
+// - Profile information display
+// - MFA status indicator and setup button
+// - Quick action cards for navigation
+// - Recent activity list
+// - Responsive grid layout
 ```
 
-**Consultation Component**
-- Main consultation interface with chat-like interaction similar to ChatGPT
-- Primary chatbox interface for text-based conversations
-- Side panel with voice interaction controls for natural speech with AI agent
-- Real-time speech-to-text transcription with visual feedback
-- Text-to-speech playback of AI responses with natural voice synthesis
-- Seamless switching between text and voice modes within the same conversation
-- Voice activity detection and automatic speech recognition
-- Response formatting with expandable sections and source citations
+**Consultation Component (Placeholder)**
+- Currently shows placeholder interface with title and description
+- Planned to be the main chat interface for AI consultations
+- Will integrate with backend consultation service
+- Future implementation will include real-time messaging
 
 ```typescript
-interface ConsultationProps {
-  sessionId?: string;
-  initialType?: ConsultationType;
-}
+export default function ConsultationPage()
 
-interface ConsultationState {
-  messages: Message[];
-  isTyping: boolean;
-  currentType: ConsultationType;
-  context: ConsultationContext;
-  attachedDocuments: Document[];
-  voiceMode: boolean;
-  isRecording: boolean;
-  isPlaying: boolean;
-  audioLevel: number;
-  transcriptionActive: boolean;
-}
+// Current implementation:
+// - Simple card layout with placeholder content
+// - References to future Task 7 implementation
+// - No interactive functionality yet
 
-interface Message {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
-  sources?: DocumentReference[];
-  confidence?: number;
-  metadata?: MessageMetadata;
-  audioUrl?: string; // For TTS playback
-  transcriptionConfidence?: number; // For STT accuracy
-  inputMethod: 'text' | 'voice';
-}
+// Planned features:
+// - Chat interface similar to ChatGPT
+// - Real-time messaging with WebSocket
+// - Document attachment support
+// - Voice interaction capabilities
+// - Response formatting with sources
 ```
 
-**Documents Component**
-- Document library with grid and list views
-- Advanced filtering and search capabilities
-- Bulk operations and metadata editing
-- Document preview and processing status
+**Documents Component (Fully Implemented)**
+- Complete document management interface with grid/list view toggle
+- Advanced search and filtering with real-time updates
+- Bulk operations (select all, bulk delete, bulk download)
+- Document upload modal with drag-and-drop support
+- Document preview, edit, and delete functionality
+- Responsive design with mobile-optimized layout
+- Integration with React Query for data fetching and caching
 
 ```typescript
-interface DocumentsProps {
-  initialFilters?: DocumentFilters;
-}
+export default function DocumentsPage()
 
-interface DocumentsState {
-  documents: Document[];
-  selectedDocuments: string[];
-  viewMode: 'grid' | 'list';
-  filters: DocumentFilters;
-  sortBy: DocumentSortOption;
-  loading: boolean;
-}
+// Implemented features:
+// - Grid and list view modes with toggle
+// - Search bar with real-time filtering
+// - Advanced filters sidebar (collapsible)
+// - Bulk selection and operations
+// - Upload modal with DocumentUpload component
+// - Document preview modal
+// - Sort functionality
+// - Loading and error states
+// - Responsive design
+// - Integration with document store and API
 
 interface DocumentFilters {
-  category?: DocumentCategory;
-  dateRange?: DateRange;
-  classification?: SecurityClassification;
+  category?: string;
+  classification?: 'public' | 'internal' | 'confidential' | 'secret';
   tags?: string[];
+  dateRange?: { start: Date; end: Date };
   searchQuery?: string;
+  status?: 'uploading' | 'processing' | 'completed' | 'error';
 }
 ```
 
-### Feature Components
+### Feature Components (Implemented)
 
-**ChatInterface Component**
-- Real-time messaging with WebSocket connection
-- Primary text input area with rich text support and auto-resize
-- Side-mounted voice control panel with microphone activation
-- Continuous speech recognition with real-time transcription display
-- Voice activity detection with visual audio level indicators
-- Push-to-talk and continuous listening modes
-- Automatic text-to-speech playback of AI responses
-- Voice settings panel for speech rate, voice selection, and audio preferences
-- File attachment and document reference capabilities
-- Message history and context management with voice/text indicators
-
-```typescript
-interface ChatInterfaceProps {
-  sessionId: string;
-  onMessageSent: (message: string, attachments?: File[], inputMethod: 'text' | 'voice') => void;
-  onVoiceInput: (audioBlob: Blob) => void;
-  onVoiceSettingsChange: (settings: VoiceSettings) => void;
-}
-
-interface ChatInterfaceState {
-  messages: Message[];
-  inputValue: string;
-  isRecording: boolean;
-  attachments: File[];
-  isConnected: boolean;
-  voicePanelOpen: boolean;
-  audioLevel: number;
-  transcriptionText: string;
-  isTranscribing: boolean;
-  voiceSettings: VoiceSettings;
-  listeningMode: 'push-to-talk' | 'continuous';
-}
-
-interface VoiceSettings {
-  voice: string;
-  speechRate: number;
-  volume: number;
-  autoPlayResponses: boolean;
-  showTranscription: boolean;
-  language: string;
-}
-```
-
-**DocumentUpload Component**
-- Drag-and-drop file upload with progress tracking
-- File validation and format checking
-- Metadata input and classification selection
-- Batch upload support with queue management
+**DocumentUpload Component (Fully Implemented)**
+- Drag-and-drop file upload with react-dropzone
+- File validation (type, size limits)
+- Metadata editing modal for each file
+- Progress tracking with visual indicators
+- Support for multiple file formats (PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV, JSON, XML)
+- Classification levels and tagging system
+- Error handling and retry functionality
 
 ```typescript
 interface DocumentUploadProps {
-  onUploadComplete: (documents: Document[]) => void;
-  onUploadError: (error: UploadError) => void;
+  onUploadComplete?: (documents: any[]) => void;
+  onUploadError?: (error: string) => void;
   maxFiles?: number;
   acceptedTypes?: string[];
+  className?: string;
 }
 
-interface UploadState {
-  files: UploadFile[];
-  uploadProgress: Record<string, number>;
-  errors: Record<string, string>;
-  isUploading: boolean;
+// Implemented features:
+// - Drag-and-drop zone with visual feedback
+// - File validation and error messages
+// - Metadata editing modal with form fields
+// - Progress bars for upload status
+// - Tag management system
+// - Classification selection
+// - File removal before upload
+// - Batch upload support
+// - Integration with API client
+```
+
+**Document Grid/List Components (Implemented)**
+- DocumentGrid: Card-based layout with thumbnails and metadata
+- DocumentList: Table-based layout with sortable columns
+- DocumentFilters: Sidebar with category, classification, date range, and tag filters
+- DocumentPreview: Modal for viewing document details and content
+- Responsive design with mobile optimization
+- Selection support for bulk operations
+
+```typescript
+// DocumentGrid - displays documents in card format
+interface DocumentGridProps {
+  documents: Document[];
+  selectedDocuments: string[];
+  onSelectDocument: (id: string) => void;
+  onDeselectDocument: (id: string) => void;
+  onPreviewDocument: (document: Document) => void;
+  onEditDocument: (document: Document) => void;
+  onDownloadDocument: (document: Document) => void;
+  onDeleteDocument: (document: Document) => void;
 }
 
-interface UploadFile {
-  file: File;
-  id: string;
-  metadata: DocumentMetadata;
-  status: 'pending' | 'uploading' | 'processing' | 'complete' | 'error';
+// DocumentList - displays documents in table format
+interface DocumentListProps extends DocumentGridProps {
+  onSelectAll: (documentIds: string[]) => void;
+  onSort: (field: string, direction: 'asc' | 'desc') => void;
+  sortField: string;
+  sortDirection: 'asc' | 'desc';
 }
 ```
 
-**SearchBar Component**
-- Global search across documents, consultations, and knowledge base
-- Auto-complete suggestions and search history
-- Advanced search filters and operators
-- Search result highlighting and navigation
+**Authentication Components (Implemented)**
+- Login page with email/password and MFA support
+- MFA setup page with QR code generation
+- Password strength validation
+- Remember me functionality
+- Account lockout after failed attempts
+- Automatic token refresh
+- Logout functionality with token cleanup
 
 ```typescript
-interface SearchBarProps {
-  onSearch: (query: string, filters?: SearchFilters) => void;
-  placeholder?: string;
-  showFilters?: boolean;
-}
+// Login page with comprehensive authentication flow
+export default function LoginPage()
 
-interface SearchState {
-  query: string;
-  suggestions: SearchSuggestion[];
-  history: string[];
-  filters: SearchFilters;
-  isOpen: boolean;
-}
+// MFA setup page for two-factor authentication
+export default function MFASetupPage()
+
+// Features implemented:
+// - Form validation with error messages
+// - Loading states during authentication
+// - MFA code input and verification
+// - QR code display for authenticator apps
+// - Backup codes generation
+// - Integration with auth store and API
+// - Responsive design
+// - Accessibility support
 ```
 
-### API Integration Layer
+### API Integration Layer (Implemented)
 
-**API Client**
-- Centralized HTTP client with authentication handling
-- Request/response interceptors for error handling
-- Retry logic and timeout management
-- Type-safe API calls with generated types
+**API Client (Comprehensive Implementation)**
+- Centralized APIClient class with modular service organization
+- Request/response interceptors for authentication and error handling
+- Automatic token refresh with retry logic
+- Comprehensive error handling with custom APIError class
+- Timeout management and retry configuration
+- Type-safe API calls with TypeScript interfaces
 
 ```typescript
-interface APIClient {
+class APIClient {
+  // Organized into service modules
   auth: AuthAPI;
   documents: DocumentsAPI;
   consultations: ConsultationsAPI;
-  knowledge: KnowledgeAPI;
+  users: UsersAPI;
   audit: AuditAPI;
 }
 
-interface AuthAPI {
-  login(credentials: LoginCredentials): Promise<AuthResponse>;
-  logout(): Promise<void>;
-  refreshToken(): Promise<AuthResponse>;
-  getCurrentUser(): Promise<User>;
-}
+// Implemented features:
+// - Automatic Bearer token injection
+// - Token refresh on 401 errors
+// - Retry logic with exponential backoff
+// - Request/response interceptors
+// - Error classification (network, auth, server, client)
+// - Timeout handling with AbortController
+// - FormData support for file uploads
+// - Query parameter handling
+// - Response caching integration
 
-interface DocumentsAPI {
-  upload(files: File[], metadata: DocumentMetadata[]): Promise<Document[]>;
-  getDocuments(filters?: DocumentFilters): Promise<DocumentsResponse>;
-  getDocument(id: string): Promise<Document>;
-  updateDocument(id: string, updates: Partial<Document>): Promise<Document>;
-  deleteDocument(id: string): Promise<void>;
-  searchDocuments(query: string): Promise<SearchResult[]>;
-}
-
-interface ConsultationsAPI {
-  createSession(type: ConsultationType): Promise<ConsultationSession>;
-  sendMessage(sessionId: string, message: string, inputMethod?: 'text' | 'voice'): Promise<ConsultationResponse>;
-  sendVoiceMessage(sessionId: string, audioBlob: Blob): Promise<ConsultationResponse>;
-  getSession(sessionId: string): Promise<ConsultationSession>;
-  getSessions(filters?: SessionFilters): Promise<ConsultationSession[]>;
-  exportSession(sessionId: string, format: ExportFormat): Promise<Blob>;
-  transcribeAudio(audioBlob: Blob, options?: TranscriptionOptions): Promise<TranscriptionResult>;
-  synthesizeSpeech(text: string, options?: TTSOptions): Promise<AudioResult>;
-  getAvailableVoices(): Promise<Voice[]>;
+interface APIError extends Error {
+  status: number;
+  code?: string;
+  details?: Record<string, unknown>;
+  requestId?: string;
+  isNetworkError: boolean;
+  isAuthError: boolean;
+  isServerError: boolean;
+  isRetryable: boolean;
 }
 ```
 
-**WebSocket Client**
-- Real-time communication for chat interfaces
-- Connection management with automatic reconnection
-- Message queuing for offline scenarios
-- Event-driven architecture for real-time updates
+**Token Management (Implemented)**
+- Secure token storage and management
+- Automatic token validation and refresh
+- Token expiration handling
+- Secure storage considerations
 
 ```typescript
-interface WebSocketClient {
-  connect(sessionId: string): Promise<void>;
-  disconnect(): void;
-  sendMessage(message: WebSocketMessage): void;
-  onMessage(callback: (message: WebSocketMessage) => void): void;
-  onConnectionChange(callback: (connected: boolean) => void): void;
+class TokenManager {
+  getToken(): string | null;
+  getRefreshToken(): string | null;
+  setTokens(accessToken: string, refreshToken: string): void;
+  clearTokens(): void;
+  isTokenValid(): boolean;
+  shouldRefreshToken(): boolean;
+  getTokenPayload(): TokenPayload | null;
 }
 
-interface WebSocketMessage {
-  type: 'message' | 'typing' | 'status' | 'error';
-  sessionId: string;
-  data: any;
-  timestamp: Date;
-}
+// Features implemented:
+// - JWT token parsing and validation
+// - Expiration checking with buffer time
+// - Secure token storage in localStorage
+// - Token payload extraction
+// - Automatic cleanup on logout
 ```
 
-## Data Models
+## Data Models (Implemented)
 
-### Frontend-Specific Models
+### Core Data Models
 
 ```typescript
-// UI State Models
-interface UIState {
-  theme: 'light' | 'dark' | 'system';
-  sidebarCollapsed: boolean;
-  notifications: Notification[];
-  loading: Record<string, boolean>;
-  errors: Record<string, string>;
-}
-
-interface Notification {
+// User Model (matches backend)
+interface User {
   id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  title: string;
-  message: string;
-  timestamp: Date;
-  read: boolean;
-  actions?: NotificationAction[];
-}
-
-interface NotificationAction {
-  label: string;
-  action: () => void;
-  variant?: 'default' | 'destructive';
-}
-
-// Form Models
-interface LoginForm {
   email: string;
-  password: string;
-  mfaCode?: string;
-  rememberMe: boolean;
+  name: string;
+  role: 'admin' | 'analyst' | 'manager' | 'viewer' | 'consultant';
+  department?: string;
+  permissions?: Array<{
+    resource: string;
+    actions: string[];
+  }>;
+  security_clearance?: string;
+  mfa_enabled: boolean;
+  last_login?: string;
+  created_at: string;
+  updated_at: string;
+  is_active: boolean;
 }
 
-interface DocumentUploadForm {
-  files: File[];
-  metadata: DocumentMetadata;
-  classification: SecurityClassification;
-  tags: string[];
-  department: string;
-}
-
-interface ConsultationForm {
-  type: ConsultationType;
-  query: string;
-  context?: string;
-  attachedDocuments?: string[];
-  priority: Priority;
-}
-
-// View Models (transformed from backend models)
-interface DocumentViewModel {
+// Document Model (matches backend)
+interface Document {
   id: string;
   name: string;
   type: string;
-  size: string; // formatted size
-  uploadedAt: string; // formatted date
-  status: ProcessingStatus;
-  classification: SecurityClassification;
-  thumbnail?: string;
+  size: number;
+  uploadedAt: Date;
+  userId: string;
+  status: 'uploading' | 'processing' | 'completed' | 'error';
+  classification?: 'public' | 'internal' | 'confidential' | 'secret';
+  tags: string[];
+  metadata: DocumentMetadata;
   downloadUrl?: string;
   previewUrl?: string;
+  thumbnail?: string;
 }
 
-interface ConsultationViewModel {
-  id: string;
-  title: string;
-  type: ConsultationType;
-  status: SessionStatus;
-  createdAt: string; // formatted date
-  lastActivity: string; // formatted date
-  messageCount: number;
-  hasUnread: boolean;
-  summary?: string;
+// Authentication Models
+interface LoginCredentials {
+  email: string;
+  password: string;
+  mfaCode?: string;
+  rememberMe?: boolean;
 }
 
-interface MessageViewModel {
-  id: string;
-  type: 'user' | 'assistant';
-  content: string;
-  timestamp: string; // formatted time
-  sources?: SourceViewModel[];
-  confidence?: number;
-  isStreaming?: boolean;
-  reactions?: MessageReaction[];
-  inputMethod: 'text' | 'voice';
-  audioUrl?: string; // For TTS playback
-  transcriptionConfidence?: number; // For voice messages
-  canPlayAudio?: boolean;
-  isPlaying?: boolean;
-}
-
-interface SourceViewModel {
-  id: string;
-  title: string;
-  type: 'document' | 'knowledge' | 'research';
-  excerpt: string;
-  confidence: number;
-  url?: string;
+interface AuthResponse {
+  user: User;
+  tokens: {
+    access_token: string;
+    refresh_token: string;
+    expires_at: string;
+  };
+  message?: string;
+  session_id?: string;
 }
 ```
 
-### State Management Models
+### State Management Models (Implemented)
 
 ```typescript
-// Zustand Store Interfaces
+// Auth Store (Fully Implemented)
 interface AuthStore {
   user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+  loginAttempts: number;
+  isLocked: boolean;
   login: (credentials: LoginCredentials) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshToken: () => Promise<void>;
+  getCurrentUser: () => Promise<void>;
+  checkAuth: () => Promise<void>;
+  clearError: () => void;
+  resetLoginAttempts: () => void;
 }
 
+// UI Store (Implemented)
 interface UIStore {
-  theme: Theme;
   sidebarOpen: boolean;
   notifications: Notification[];
-  setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
+  setSidebarOpen: (open: boolean) => void;
   addNotification: (notification: Omit<Notification, 'id' | 'timestamp'>) => void;
   removeNotification: (id: string) => void;
   markNotificationRead: (id: string) => void;
 }
 
-interface ConsultationStore {
-  currentSession: ConsultationSession | null;
-  sessions: ConsultationSession[];
-  createSession: (type: ConsultationType) => Promise<ConsultationSession>;
-  sendMessage: (message: string) => Promise<void>;
-  loadSessions: () => Promise<void>;
-  setCurrentSession: (session: ConsultationSession | null) => void;
-}
-
+// Document Store (Fully Implemented)
 interface DocumentStore {
-  documents: Document[];
   selectedDocuments: string[];
+  viewMode: 'grid' | 'list';
   filters: DocumentFilters;
-  uploadDocuments: (files: File[], metadata: DocumentMetadata[]) => Promise<void>;
-  loadDocuments: (filters?: DocumentFilters) => Promise<void>;
+  sortBy: DocumentSortOption;
+  uploadProgress: Record<string, DocumentUploadProgress>;
+  isUploading: boolean;
+  showUploadModal: boolean;
+  // Selection actions
   selectDocument: (id: string) => void;
   deselectDocument: (id: string) => void;
-  setFilters: (filters: DocumentFilters) => void;
+  selectAllDocuments: (documentIds: string[]) => void;
+  clearSelection: () => void;
+  // View actions
+  setViewMode: (mode: 'grid' | 'list') => void;
+  setFilters: (filters: Partial<DocumentFilters>) => void;
+  setSortBy: (sortBy: DocumentSortOption) => void;
+  // Upload actions
+  startUpload: (files: File[]) => void;
+  updateUploadProgress: (fileId: string, progress: Partial<DocumentUploadProgress>) => void;
+  completeUpload: (fileId: string, document?: Document) => void;
+  failUpload: (fileId: string, error: string) => void;
 }
 ```
 
-## Error Handling
+## Error Handling (Implemented)
 
 ### Error Boundary Strategy
 
 ```typescript
+// LayoutErrorBoundary (Implemented)
+export class LayoutErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  ErrorBoundaryState
+> {
+  // Features implemented:
+  // - Catches JavaScript errors in layout components
+  // - Displays user-friendly error message
+  // - Provides reload button for recovery
+  // - Logs errors to console (ready for monitoring integration)
+  // - Prevents entire app crash
+}
+
 interface ErrorBoundaryState {
   hasError: boolean;
   error: Error | null;
-  errorInfo: ErrorInfo | null;
 }
 
-class GlobalErrorBoundary extends Component<PropsWithChildren, ErrorBoundaryState> {
-  // Catches JavaScript errors anywhere in the child component tree
-  // Logs error details and displays fallback UI
-  // Provides error reporting to monitoring services
-}
-
-class FeatureErrorBoundary extends Component<PropsWithChildren, ErrorBoundaryState> {
-  // Catches errors within specific features
-  // Allows rest of application to continue functioning
-  // Provides feature-specific error recovery options
-}
+// Error display includes:
+// - "Something went wrong" message
+// - Reload page button
+// - Styled error UI matching app theme
 ```
 
-### API Error Handling
+### API Error Handling (Implemented)
 
 ```typescript
-interface APIError {
-  code: string;
-  message: string;
-  details?: Record<string, any>;
-  timestamp: Date;
-  requestId: string;
+// APIError Class (Comprehensive Implementation)
+export class APIError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+    public details?: Record<string, unknown>,
+    public requestId?: string
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+
+  // Error classification methods
+  get isNetworkError(): boolean { return this.status === 0; }
+  get isAuthError(): boolean { return this.status === 401 || this.status === 403; }
+  get isServerError(): boolean { return this.status >= 500; }
+  get isClientError(): boolean { return this.status >= 400 && this.status < 500; }
+  get isRetryable(): boolean { return this.isNetworkError || this.isServerError || this.status === 429; }
 }
 
-interface ErrorHandler {
-  handleAuthError: (error: APIError) => void;
-  handleNetworkError: (error: NetworkError) => void;
-  handleValidationError: (error: ValidationError) => void;
-  handleServerError: (error: ServerError) => void;
-}
-
-// Error Recovery Strategies
-interface ErrorRecovery {
-  retry: (operation: () => Promise<any>, maxAttempts: number) => Promise<any>;
-  fallback: (primaryOperation: () => Promise<any>, fallbackOperation: () => Promise<any>) => Promise<any>;
-  gracefulDegradation: (feature: string, fallbackComponent: React.ComponentType) => React.ComponentType;
-}
+// Error Recovery (Implemented)
+// - Automatic retry with exponential backoff
+// - Token refresh on 401 errors
+// - Request timeout handling with AbortController
+// - Network error detection and handling
+// - User-friendly error messages in UI components
+// - Loading states during error recovery
 ```
 
-### Form Validation
+### Form Validation (Implemented)
 
 ```typescript
-interface ValidationSchema {
-  [field: string]: ValidationRule[];
-}
+// Form validation implemented using:
+// - React Hook Form for form state management
+// - Zod for schema validation
+// - Custom validation rules for business logic
 
-interface ValidationRule {
-  type: 'required' | 'email' | 'minLength' | 'maxLength' | 'pattern' | 'custom';
-  value?: any;
-  message: string;
-  validator?: (value: any) => boolean;
-}
+// Example implementations:
+// - Login form with email/password validation
+// - MFA code validation (6-digit numeric)
+// - Document upload form with file validation
+// - Metadata forms with required field validation
 
-interface ValidationResult {
-  isValid: boolean;
-  errors: Record<string, string>;
-}
+// Features implemented:
+// - Real-time validation feedback
+// - Error message display
+// - Form submission prevention on validation errors
+// - Accessibility support with ARIA attributes
+// - Custom validation rules for government-specific requirements
 ```
 
-## Testing Strategy
+## Testing Strategy (Implemented)
 
-### Testing Pyramid
-
-1. **Unit Tests (70%)**:
-   - Component testing with React Testing Library
-   - Hook testing with custom test utilities
-   - Utility function testing
-   - Store/state management testing
-
-2. **Integration Tests (20%)**:
-   - API integration testing with MSW (Mock Service Worker)
-   - Component integration testing
-   - User workflow testing
-   - WebSocket connection testing
-
-3. **End-to-End Tests (10%)**:
-   - Critical user journeys with Playwright
-   - Cross-browser compatibility testing
-   - Accessibility testing
-   - Performance testing
-
-### Testing Tools and Configuration
+### Testing Setup and Configuration
 
 ```typescript
-// Jest Configuration
-interface JestConfig {
-  testEnvironment: 'jsdom';
-  setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'];
-  moduleNameMapping: {
-    '^@/(.*)$': '<rootDir>/src/$1';
-  };
-  collectCoverageFrom: [
-    'src/**/*.{ts,tsx}',
-    '!src/**/*.d.ts',
-    '!src/test/**/*',
-  ];
-}
+// Jest Configuration (Implemented)
+// - jsdom test environment for React components
+// - Module path mapping for @/ imports
+// - Coverage collection from src directory
+// - Setup files for test utilities
 
-// Testing Utilities
-interface TestUtils {
-  renderWithProviders: (component: React.ReactElement, options?: RenderOptions) => RenderResult;
-  createMockUser: (overrides?: Partial<User>) => User;
-  createMockConsultation: (overrides?: Partial<ConsultationSession>) => ConsultationSession;
-  mockAPIResponse: (endpoint: string, response: any) => void;
-}
+// Testing Tools Implemented:
+// - Jest 30.0.5 for test runner
+// - React Testing Library 16.3.0 for component testing
+// - @testing-library/user-event for user interaction simulation
+// - @testing-library/jest-dom for custom matchers
 
-// Accessibility Testing
-interface A11yTestConfig {
-  rules: {
-    'color-contrast': { enabled: true };
-    'keyboard-navigation': { enabled: true };
-    'screen-reader': { enabled: true };
-    'focus-management': { enabled: true };
-  };
-}
+// Test Scripts Available:
+// - npm run test: Run all tests
+// - npm run test:watch: Watch mode for development
+// - npm run test:coverage: Generate coverage reports
+// - npm run test:integration: Run integration tests
+// - npm run test:auth: Authentication-specific tests
+// - npm run test:documents: Document management tests
 ```
 
 ### Performance Testing
