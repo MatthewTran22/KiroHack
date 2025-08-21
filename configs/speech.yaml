@@ -1,0 +1,176 @@
+# Speech Services Configuration
+
+speech:
+  # Enable/disable speech services
+  enable_tts: true
+  enable_stt: true
+  enable_voice_auth: true
+  
+  # Default language for speech processing
+  default_language: "en"
+  
+  # Session management
+  max_session_time: "2h"
+  cleanup_interval: "5m"
+
+# ElevenLabs Text-to-Speech Configuration
+elevenlabs:
+  # API configuration
+  api_key: "${ELEVENLABS_API_KEY}"
+  base_url: "https://api.elevenlabs.io"
+  
+  # Default voice ID (Rachel - professional female voice)
+  default_voice: "21m00Tcm4TlvDq8ikWAM"
+  
+  # Request configuration
+  max_retries: 3
+  timeout: 30
+  rate_limit: 60  # requests per minute
+  
+  # Quality settings
+  default_quality: "medium"
+  default_stability: 0.5
+  default_clarity: 0.75
+
+# Wav2Vec2 Speech-to-Text Configuration
+wav2vec2:
+  # Model paths (should be absolute paths to downloaded models)
+  model_path: "${WAV2VEC2_MODEL_PATH:-/models/wav2vec2-base-960h}"
+  processor_path: "${WAV2VEC2_PROCESSOR_PATH:-/models/wav2vec2-base-960h}"
+  
+  # Processing configuration
+  device_type: "cpu"  # or "cuda" if GPU available
+  batch_size: 1
+  max_audio_length: 300  # seconds
+  sample_rate: 16000
+  chunk_duration: 5.0  # seconds
+  
+  # Python environment
+  python_path: "python3"
+  
+  # Model variants available
+  models:
+    base: "facebook/wav2vec2-base-960h"
+    large: "facebook/wav2vec2-large-960h"
+    xlsr: "facebook/wav2vec2-large-xlsr-53"
+
+# Voice Authentication Configuration
+voice_auth:
+  # Enrollment requirements
+  min_samples: 3
+  max_samples: 10
+  
+  # Authentication thresholds
+  similarity_threshold: 0.85
+  update_threshold: 0.90
+  
+  # Audio requirements
+  min_audio_duration: 2.0  # seconds
+  max_audio_duration: 30.0  # seconds
+  
+  # Embedding configuration
+  embedding_dimension: 256
+  
+# Audio Processing Configuration
+audio:
+  # Supported formats
+  supported_formats:
+    - "wav"
+    - "mp3"
+    - "ogg"
+    - "flac"
+  
+  # Processing limits
+  max_file_size: "50MB"
+  max_duration: "600s"  # 10 minutes
+  
+  # Quality settings
+  target_sample_rate: 16000
+  target_channels: 1  # mono
+  target_bit_depth: 16
+  
+  # FFmpeg configuration
+  ffmpeg_path: "ffmpeg"
+  enable_gpu_acceleration: false
+
+# Security Configuration
+security:
+  # Audio data encryption
+  encrypt_audio_at_rest: true
+  encrypt_audio_in_transit: true
+  
+  # Voice profile security
+  voice_profile_encryption: true
+  voice_data_retention: "90d"
+  
+  # Session security
+  session_encryption: true
+  secure_audio_transfer: true
+
+# Performance Configuration
+performance:
+  # Caching
+  enable_audio_caching: true
+  cache_duration: "1h"
+  max_cache_size: "1GB"
+  
+  # Concurrency
+  max_concurrent_tts: 10
+  max_concurrent_stt: 5
+  max_concurrent_voice_auth: 3
+  
+  # Resource limits
+  memory_limit: "2GB"
+  cpu_limit: "4"
+
+# Monitoring Configuration
+monitoring:
+  # Metrics collection
+  enable_metrics: true
+  metrics_interval: "30s"
+  
+  # Health checks
+  health_check_interval: "10s"
+  
+  # Logging
+  log_level: "info"
+  log_audio_metadata: true
+  log_performance_metrics: true
+  
+  # Alerts
+  enable_alerts: true
+  alert_thresholds:
+    error_rate: 0.05  # 5%
+    response_time: "5s"
+    queue_size: 100
+
+# Development Configuration
+development:
+  # Mock services for testing
+  use_mock_tts: false
+  use_mock_stt: false
+  use_mock_voice_auth: false
+  
+  # Debug settings
+  debug_audio_processing: false
+  save_debug_audio: false
+  debug_output_dir: "/tmp/speech_debug"
+  
+  # Testing
+  enable_test_endpoints: false
+  test_audio_samples: "/test/audio"
+
+# Production Configuration
+production:
+  # High availability
+  enable_failover: true
+  backup_services: true
+  
+  # Load balancing
+  enable_load_balancing: true
+  max_requests_per_instance: 1000
+  
+  # Data backup
+  backup_voice_profiles: true
+  backup_interval: "24h"
+  backup_retention: "30d"

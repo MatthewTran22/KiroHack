@@ -45,9 +45,6 @@ logs/
 build/
 dist/
 
-# Docker
-.dockerignore
-
 # Air (hot reload)
 tmp/
 build-errors.log

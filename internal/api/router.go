@@ -5,6 +5,7 @@ import (
 	"ai-government-consultant/internal/consultation"
 	"ai-government-consultant/internal/document"
 	"ai-government-consultant/internal/models"
+	"ai-government-consultant/internal/speech"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +17,7 @@ type RouterConfig struct {
 	ConsultationService *consultation.Service
 	KnowledgeService    KnowledgeServiceInterface
 	AuditService        AuditServiceInterface
+	SpeechService       *speech.SpeechService
 	AllowedOrigins      []string
 }
 
@@ -27,6 +29,10 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 	consultationHandler := NewConsultationHandler(config.ConsultationService)
 	knowledgeHandler := NewKnowledgeHandler(config.KnowledgeService)
 	auditHandler := NewAuditHandler(config.AuditService)
+	var speechHandler *SpeechHandler
+	if config.SpeechService != nil {
+		speechHandler = NewSpeechHandler(config.SpeechService)
+	}
 
 	// Global middleware
 	router.Use(SecurityHeadersMiddleware())
@@ -132,6 +138,40 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 			knowledge.PUT("/:id", knowledgeHandler.UpdateKnowledge)
 			knowledge.DELETE("/:id", knowledgeHandler.DeleteKnowledge)
 			knowledge.GET("/:id/related", knowledgeHandler.GetRelatedKnowledge)
+		}
+
+		// Speech services endpoints (only if speech service is available)
+		if speechHandler != nil {
+			speech := v1.Group("/speech")
+			speech.Use(AuthMiddleware(config.AuthService))
+			{
+				// Session management
+				speech.POST("/sessions", speechHandler.CreateSpeechSession)
+				speech.GET("/sessions/history", speechHandler.GetSessionHistory)
+				speech.DELETE("/sessions/:sessionId", speechHandler.EndSession)
+
+				// Voice processing within sessions
+				speech.POST("/sessions/:sessionId/query", speechHandler.ProcessVoiceQuery)
+				speech.POST("/sessions/:sessionId/response", speechHandler.GenerateVoiceResponse)
+
+				// Direct speech processing (without sessions)
+				speech.POST("/transcribe", speechHandler.TranscribeAudio)
+				speech.POST("/synthesize", speechHandler.SynthesizeSpeech)
+
+				// Audio file upload and validation
+				speech.POST("/upload", speechHandler.UploadAudioFile)
+
+				// Voice authentication
+				voiceAuth := speech.Group("/auth")
+				{
+					voiceAuth.POST("/enroll", speechHandler.EnrollVoice)
+					voiceAuth.POST("/authenticate", speechHandler.AuthenticateVoice)
+				}
+
+				// Service capabilities
+				speech.GET("/voices", speechHandler.GetAvailableVoices)
+				speech.GET("/languages", speechHandler.GetSupportedLanguages)
+			}
 		}
 
 		// Audit and reporting endpoints
@@ -258,6 +298,7 @@ func getAPIDocumentation(c *gin.Context) {
 				"documents":      "/api/v1/documents/*",
 				"consultations":  "/api/v1/consultations/*",
 				"knowledge":      "/api/v1/knowledge/*",
+				"speech":         "/api/v1/speech/*",
 				"audit":          "/api/v1/audit/*",
 				"system":         "/api/v1/system/*",
 			},
