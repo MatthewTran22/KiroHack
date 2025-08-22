@@ -4,51 +4,41 @@ FROM golang:1.23-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Install build dependencies
+# Install build dependencies in a single layer
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Copy go mod files
+# Copy go mod files first for better caching
 COPY go.mod go.sum ./
 
-# Download dependencies
-RUN go mod download
+# Download dependencies (this layer will be cached unless go.mod/go.sum changes)
+RUN go mod download && go mod verify
 
-# Copy source code
-COPY . .
+# Copy only necessary source files (not the entire codebase)
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
+COPY pkg/ ./pkg/
+COPY configs/ ./configs/
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/server
+# Build the application with optimizations
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags='-w -s -extldflags "-static"' \
+    -a -installsuffix cgo \
+    -o main ./cmd/server
 
-# Final stage
-FROM alpine:latest
-
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates tzdata
-
-# Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
-
-WORKDIR /root/
+# Final stage - use distroless for smaller, more secure image
+FROM gcr.io/distroless/static-debian11:nonroot
 
 # Copy the binary from builder stage
-COPY --from=builder /app/main .
+COPY --from=builder /app/main /app/main
 
 # Copy configuration files
-COPY --from=builder /app/configs ./configs
+COPY --from=builder /app/configs /app/configs
 
-# Change ownership to non-root user
-RUN chown -R appuser:appgroup /root/
-
-# Switch to non-root user
-USER appuser
+# Set working directory
+WORKDIR /app
 
 # Expose port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
-
-# Run the application
+# Run the application as non-root user (distroless nonroot user)
 CMD ["./main"]

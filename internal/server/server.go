@@ -202,6 +202,7 @@ func (s *Server) setupRoutes() {
 		ConsultationService: s.consultationService,
 		KnowledgeService:    s.knowledgeService,
 		AuditService:        s.auditService,
+		SpeechService:       nil, // Speech service is optional
 		AllowedOrigins:      allowedOrigins,
 	}
 

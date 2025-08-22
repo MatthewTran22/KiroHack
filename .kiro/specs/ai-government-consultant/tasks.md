@@ -153,7 +153,7 @@ This implementation plan converts the AI Government Consultant design into a ser
   - Write integration tests for all API endpoints and error scenarios using the existing docker containers
   - _Requirements: All requirements (API layer for all functionality)_
 
-- [ ] 12. Implement speech-to-text and text-to-speech services
+- [x] 12. Implement speech-to-text and text-to-speech services
   - Integrate Wav2Vec2 open-source model for speech-to-text transcription with local processing capabilities
   - Implement ElevenLabs integration for high-quality text-to-speech conversion
   - Create audio preprocessing pipeline for Wav2Vec2 including resampling and normalization
