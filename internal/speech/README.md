@@ -12,8 +12,8 @@ This package provides comprehensive speech-to-text (STT), text-to-speech (TTS), 
 - **Audio Formats**: Support for MP3, WAV, and OGG output formats
 
 ### Speech-to-Text (STT)
-- **Wav2Vec2 Models**: Local processing using Facebook's Wav2Vec2 models
-- **Privacy-First**: All transcription happens locally for data security
+- **ElevenLabs STT**: Cloud-based processing using ElevenLabs Speech-to-Text API
+- **High Accuracy**: Advanced neural models for accurate transcription
 - **Multi-Language**: Support for 10+ languages
 - **Real-time Processing**: Chunked audio processing for long recordings
 - **High Accuracy**: State-of-the-art speech recognition accuracy
@@ -36,7 +36,7 @@ This package provides comprehensive speech-to-text (STT), text-to-speech (TTS), 
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   TTS Service   │    │   STT Service   │    │  Voice Auth     │
-│  (ElevenLabs)   │    │   (Wav2Vec2)    │    │   Service       │
+│  (ElevenLabs)   │    │  (ElevenLabs)   │    │   Service       │
 └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
          └───────────────────────┼───────────────────────┘
@@ -75,12 +75,12 @@ Text-to-speech implementation using ElevenLabs API:
 - Quality control
 - Rate limiting
 
-#### `Wav2Vec2STTService`
-Speech-to-text implementation using Wav2Vec2 models:
-- Local transcription
+#### `ElevenLabsSTTService`
+Speech-to-text implementation using ElevenLabs API:
+- Cloud-based transcription
 - Multi-language support
 - Audio preprocessing
-- Chunked processing
+- High accuracy processing
 
 #### `MongoVoiceAuthenticator`
 Voice authentication service:
@@ -142,9 +142,8 @@ POST   /api/v1/speech/upload                # Upload and validate audio
 # ElevenLabs Configuration
 ELEVENLABS_API_KEY=your_api_key_here
 
-# Wav2Vec2 Configuration
-WAV2VEC2_MODEL_PATH=/path/to/wav2vec2/model
-WAV2VEC2_PROCESSOR_PATH=/path/to/wav2vec2/processor
+# ElevenLabs STT Configuration
+ELEVENLABS_API_KEY=your_api_key_here
 
 # MongoDB Configuration
 MONGODB_URI=mongodb://localhost:27017
@@ -160,24 +159,13 @@ See `configs/speech.yaml` for detailed configuration options.
 2. Get API key from dashboard
 3. Set `ELEVENLABS_API_KEY` environment variable
 
-### 2. Wav2Vec2 Setup
-1. Install Python dependencies:
+### 2. ElevenLabs STT Setup
+1. Get your ElevenLabs API key from [ElevenLabs Dashboard](https://elevenlabs.io/app/speech-synthesis)
+
+2. Set environment variable:
    ```bash
-   pip install torch torchaudio transformers
+   export ELEVENLABS_API_KEY="your_api_key_here"
    ```
-
-2. Download Wav2Vec2 models:
-   ```python
-   from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-   
-   model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h")
-   processor = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-   
-   model.save_pretrained("/path/to/model")
-   processor.save_pretrained("/path/to/processor")
-   ```
-
-3. Set model paths in environment variables
 
 ### 3. Audio Processing Setup
 1. Install FFmpeg:
@@ -272,7 +260,7 @@ LOAD_TEST=true go test ./internal/speech/...
 - Session data includes audit trails for compliance
 
 ### Privacy
-- Wav2Vec2 processing happens locally (no data sent to external services)
+- ElevenLabs STT processes audio securely through encrypted API calls
 - ElevenLabs TTS only sends text (no audio data)
 - Voice profiles use embeddings, not raw audio storage
 
@@ -354,7 +342,7 @@ monitoring:
 - Language auto-detection
 
 ### Performance Improvements
-- GPU acceleration for Wav2Vec2
+- Optimized API calls for ElevenLabs STT
 - Audio compression optimization
 - Caching strategies
 - Load balancing

@@ -32,6 +32,10 @@ services:
       - RESEARCH_MAX_SOURCES_PER_QUERY=20
       - RESEARCH_MIN_CREDIBILITY_SCORE=0.6
       - RESEARCH_MIN_RELEVANCE_SCORE=0.5
+      # ElevenLabs Configuration
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID}
+      - ELEVENLABS_SERVICE_URL=http://elevenlabs-service:8001
     depends_on:
       - mongodb
       - redis
@@ -136,6 +140,33 @@ services:
     restart: unless-stopped
     profiles:
       - dev
+
+  # ElevenLabs Microservice
+  elevenlabs-service:
+    build:
+      context: ./services/elevenlabs-service
+      dockerfile: Dockerfile
+    ports:
+      - "127.0.0.1:8001:8001"  # Restrict to localhost only
+    environment:
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID}
+      - PORT=8001
+      - LOG_LEVEL=INFO
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    profiles:
+      - dev
+      - speech
+
+
 
 volumes:
   mongodb_data:

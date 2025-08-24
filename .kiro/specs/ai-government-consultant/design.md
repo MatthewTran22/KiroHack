@@ -315,10 +315,10 @@ type PolicySuggestion struct {
 
 **Key Responsibilities**:
 - Convert consultation responses to natural speech using ElevenLabs API
-- Transcribe voice queries to text using locally deployed Wav2Vec2 models for data privacy
-- Support multiple languages through different Wav2Vec2 model variants
+- Transcribe voice queries to text using ElevenLabs Speech-to-Text API
+- Support multiple languages through ElevenLabs multilingual capabilities
 - Maintain audio quality and accuracy standards with preprocessing pipelines
-- Handle sensitive information with appropriate security through local processing
+- Handle sensitive information with appropriate security measures
 - Provide real-time transcription capabilities with chunked audio processing
 
 **Interfaces**:
@@ -344,10 +344,10 @@ type TTSOptions struct {
 
 type STTOptions struct {
     Language        string  `json:"language"`
-    Model          string  `json:"model"` // Wav2Vec2 model variant (base, large, etc.)
+    Model          string  `json:"model"` // STT model variant
     EnablePunctuation bool  `json:"enable_punctuation"`
     FilterProfanity bool   `json:"filter_profanity"`
-    SampleRate     int     `json:"sample_rate"` // Audio sample rate for Wav2Vec2
+    SampleRate     int     `json:"sample_rate"` // Audio sample rate
     ChunkSize      int     `json:"chunk_size"`  // Audio chunk size for processing
 }
 
@@ -366,18 +366,17 @@ type TranscriptionResult struct {
     Duration    float64   `json:"duration"`
     Timestamps  []WordTimestamp `json:"timestamps,omitempty"`
     ProcessedAt time.Time `json:"processed_at"`
-    ModelUsed   string    `json:"model_used"` // Wav2Vec2 model variant used
+    ModelUsed   string    `json:"model_used"` // STT model variant used
     ProcessingTime float64 `json:"processing_time"` // Time taken for transcription
 }
 
-// Wav2Vec2 specific configuration
-type Wav2Vec2Config struct {
-    ModelPath       string  `json:"model_path"`       // Path to local Wav2Vec2 model
-    ProcessorPath   string  `json:"processor_path"`   // Path to audio processor
-    DeviceType      string  `json:"device_type"`      // "cpu" or "cuda"
-    BatchSize       int     `json:"batch_size"`       // Batch size for processing
-    MaxAudioLength  int     `json:"max_audio_length"` // Maximum audio length in seconds
-    SampleRate      int     `json:"sample_rate"`      // Required sample rate (16000 Hz)
+// ElevenLabs STT specific configuration
+type ElevenLabsSTTConfig struct {
+    APIKey         string  `json:"api_key"`          // ElevenLabs API key
+    BaseURL        string  `json:"base_url"`         // API base URL
+    MaxRetries     int     `json:"max_retries"`      // Maximum retry attempts
+    Timeout        int     `json:"timeout"`          // Request timeout in seconds
+    MaxAudioLength int     `json:"max_audio_length"` // Maximum audio length in seconds
 }
 ```
 

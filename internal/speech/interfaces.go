@@ -59,10 +59,10 @@ type TTSOptions struct {
 // STTOptions contains options for speech-to-text transcription
 type STTOptions struct {
 	Language            string  `json:"language"`
-	Model              string  `json:"model"`                // Wav2Vec2 model variant (base, large, etc.)
+	Model              string  `json:"model"`                // STT model variant
 	EnablePunctuation  bool    `json:"enable_punctuation"`
 	FilterProfanity    bool    `json:"filter_profanity"`
-	SampleRate         int     `json:"sample_rate"`          // Audio sample rate for Wav2Vec2
+	SampleRate         int     `json:"sample_rate"`          // Audio sample rate
 	ChunkSize          int     `json:"chunk_size"`           // Audio chunk size for processing
 	ConfidenceThreshold float64 `json:"confidence_threshold"` // Minimum confidence for accepting results
 }
@@ -205,16 +205,7 @@ type AuthenticationResult struct {
 	Reason          string  `json:"reason,omitempty"`
 }
 
-// Wav2Vec2Config contains configuration for Wav2Vec2 model
-type Wav2Vec2Config struct {
-	ModelPath       string  `json:"model_path"`       // Path to local Wav2Vec2 model
-	ProcessorPath   string  `json:"processor_path"`   // Path to audio processor
-	DeviceType      string  `json:"device_type"`      // "cpu" or "cuda"
-	BatchSize       int     `json:"batch_size"`       // Batch size for processing
-	MaxAudioLength  int     `json:"max_audio_length"` // Maximum audio length in seconds
-	SampleRate      int     `json:"sample_rate"`      // Required sample rate (16000 Hz)
-	ChunkDuration   float64 `json:"chunk_duration"`   // Duration of audio chunks in seconds
-}
+
 
 // ElevenLabsConfig contains configuration for ElevenLabs API
 type ElevenLabsConfig struct {

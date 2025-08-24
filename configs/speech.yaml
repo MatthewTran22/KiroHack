@@ -32,27 +32,25 @@ elevenlabs:
   default_stability: 0.5
   default_clarity: 0.75
 
-# Wav2Vec2 Speech-to-Text Configuration
-wav2vec2:
-  # Model paths (should be absolute paths to downloaded models)
-  model_path: "${WAV2VEC2_MODEL_PATH:-/models/wav2vec2-base-960h}"
-  processor_path: "${WAV2VEC2_PROCESSOR_PATH:-/models/wav2vec2-base-960h}"
+# ElevenLabs Speech-to-Text Configuration
+elevenlabs_stt:
+  # API configuration
+  api_key: "${ELEVENLABS_API_KEY}"
+  base_url: "https://api.elevenlabs.io"
   
-  # Processing configuration
-  device_type: "cpu"  # or "cuda" if GPU available
-  batch_size: 1
-  max_audio_length: 300  # seconds
-  sample_rate: 16000
-  chunk_duration: 5.0  # seconds
+  # Request configuration
+  timeout: 60  # seconds
+  max_retries: 3
   
-  # Python environment
-  python_path: "python3"
+  # Supported formats
+  supported_formats:
+    - "wav"
+    - "mp3"
+    - "ogg"
+    - "flac"
   
-  # Model variants available
-  models:
-    base: "facebook/wav2vec2-base-960h"
-    large: "facebook/wav2vec2-large-960h"
-    xlsr: "facebook/wav2vec2-large-xlsr-53"
+  # Processing limits
+  max_audio_length: 600  # 10 minutes
 
 # Voice Authentication Configuration
 voice_auth:
