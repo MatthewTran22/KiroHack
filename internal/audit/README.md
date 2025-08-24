@@ -251,15 +251,8 @@ db.security_alerts.createIndex({ "severity": 1, "timestamp": -1 })
 go test ./internal/audit/...
 ```
 
-### Integration Tests
-```bash
-go test ./test/integration/audit_test.go
-```
-
-### API Tests
-```bash
-go test ./internal/api/audit_handler_test.go
-```
+### Testing
+Use the API endpoints to test audit functionality through HTTP requests.
 
 ## Compliance Standards
 

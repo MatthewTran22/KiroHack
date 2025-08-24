@@ -20,15 +20,16 @@ type SpeechService struct {
 
 // SpeechServiceConfig contains configuration for the speech service
 type SpeechServiceConfig struct {
-	EnableTTS       bool                `json:"enable_tts"`
-	EnableSTT       bool                `json:"enable_stt"`
-	EnableVoiceAuth bool                `json:"enable_voice_auth"`
-	DefaultLanguage string              `json:"default_language"`
-	MaxSessionTime  time.Duration       `json:"max_session_time"`
-	CleanupInterval time.Duration       `json:"cleanup_interval"`
-	ElevenLabs      ElevenLabsConfig    `json:"elevenlabs"`
-	Wav2Vec2        Wav2Vec2Config      `json:"wav2vec2"`
-	VoiceAuth       VoiceAuthConfig     `json:"voice_auth"`
+	EnableTTS         bool                      `json:"enable_tts"`
+	EnableSTT         bool                      `json:"enable_stt"`
+	EnableVoiceAuth   bool                      `json:"enable_voice_auth"`
+	DefaultLanguage   string                    `json:"default_language"`
+	MaxSessionTime    time.Duration             `json:"max_session_time"`
+	CleanupInterval   time.Duration             `json:"cleanup_interval"`
+	ElevenLabs        ElevenLabsConfig          `json:"elevenlabs"`
+	ElevenLabsSTT     ElevenLabsSTTConfig       `json:"elevenlabs_stt"`
+	ElevenLabsService ElevenLabsServiceConfig   `json:"elevenlabs_service"`
+	VoiceAuth         VoiceAuthConfig           `json:"voice_auth"`
 }
 
 // NewSpeechService creates a new speech service with all components
@@ -46,7 +47,13 @@ func NewSpeechService(db *mongo.Database, config SpeechServiceConfig) (*SpeechSe
 	var sttService SpeechToTextService
 	if config.EnableSTT {
 		var err error
-		sttService, err = NewWav2Vec2STTService(config.Wav2Vec2, audioProcessor)
+		if config.ElevenLabsService.BaseURL != "" {
+			// Use ElevenLabs microservice
+			sttService, err = NewElevenLabsServiceSTT(config.ElevenLabsService)
+		} else {
+			// Use direct ElevenLabs API
+			sttService, err = NewElevenLabsSTTService(config.ElevenLabsSTT)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize STT service: %w", err)
 		}

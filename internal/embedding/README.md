@@ -316,8 +316,7 @@ export LLM_API_KEY="your-gemini-api-key"
 export MONGO_URI="mongodb://localhost:27017"
 export REDIS_HOST="localhost:6379"
 
-# Run integration tests
-go test ./test/integration/embedding_test.go -v
+# Test embedding functionality through API endpoints
 ```
 
 ### Docker Testing
@@ -327,8 +326,7 @@ The integration tests are designed to work with Docker containers:
 # Start MongoDB and Redis
 docker-compose up -d mongodb redis
 
-# Run tests
-go test ./test/integration/embedding_test.go -v
+# Test embedding functionality through API endpoints
 
 # Stop containers
 docker-compose down
