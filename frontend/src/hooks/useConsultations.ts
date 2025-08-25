@@ -64,7 +64,14 @@ const consultationsAPI = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create consultation session');
+      const errorText = await response.text();
+      console.error('Consultation API Error:', response.status, errorText);
+
+      if (response.status === 500) {
+        throw new Error('Consultation service is temporarily unavailable. This might be due to missing AI service configuration. Please contact your administrator.');
+      }
+
+      throw new Error(`Failed to create consultation session: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();

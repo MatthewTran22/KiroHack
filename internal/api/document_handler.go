@@ -26,25 +26,25 @@ func NewDocumentHandler(documentService *document.Service) *DocumentHandler {
 
 // UploadDocumentRequest represents metadata for document upload
 type UploadDocumentRequest struct {
-	Title      string                   `form:"title"`
-	Author     string                   `form:"author"`
-	Department string                   `form:"department"`
-	Category   models.DocumentCategory  `form:"category" binding:"required"`
-	Tags       string                   `form:"tags"` // Comma-separated
-	Language   string                   `form:"language"`
+	Title      string                  `form:"title"`
+	Author     string                  `form:"author"`
+	Department string                  `form:"department"`
+	Category   models.DocumentCategory `form:"category" binding:"required"`
+	Tags       string                  `form:"tags"` // Comma-separated
+	Language   string                  `form:"language"`
 }
 
 // DocumentSearchRequest represents a document search request
 type DocumentSearchRequest struct {
-	Query      string                   `form:"query"`
-	Category   models.DocumentCategory  `form:"category"`
-	Tags       []string                 `form:"tags"`
-	Department string                   `form:"department"`
-	Author     string                   `form:"author"`
-	Limit      int                      `form:"limit"`
-	Skip       int                      `form:"skip"`
-	SortBy     string                   `form:"sort_by"`
-	SortOrder  string                   `form:"sort_order"`
+	Query      string                  `form:"query"`
+	Category   models.DocumentCategory `form:"category"`
+	Tags       []string                `form:"tags"`
+	Department string                  `form:"department"`
+	Author     string                  `form:"author"`
+	Limit      int                     `form:"limit"`
+	Skip       int                     `form:"skip"`
+	SortBy     string                  `form:"sort_by"`
+	SortOrder  string                  `form:"sort_order"`
 }
 
 // UploadDocument handles document upload
@@ -317,9 +317,9 @@ func (h *DocumentHandler) GetProcessingStatus(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"document_id":        doc.ID.Hex(),
-		"processing_status":  doc.ProcessingStatus,
-		"processing_error":   doc.ProcessingError,
+		"document_id":          doc.ID.Hex(),
+		"processing_status":    doc.ProcessingStatus,
+		"processing_error":     doc.ProcessingError,
 		"processing_timestamp": doc.ProcessingTimestamp,
 	})
 }
@@ -369,15 +369,38 @@ func (h *DocumentHandler) SearchDocuments(c *gin.Context) {
 		req.Skip = 0
 	}
 
-	// Note: In a real implementation, you would perform the actual search
-	// using the document service with the search parameters
-	// For now, we'll return a placeholder response
+	// Perform document search using the document service
+	documents, total, err := h.documentService.SearchDocuments(req.Query, req.Category, req.Tags, req.Department, req.Author, req.Limit, req.Skip, req.SortBy, req.SortOrder)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Failed to search documents",
+			Message: err.Error(),
+			Code:    "SEARCH_FAILED",
+		})
+		return
+	}
 
-	c.JSON(http.StatusOK, SearchResponse{
-		Documents: []*models.Document{},
-		Total:     0,
-		Limit:     req.Limit,
-		Skip:      req.Skip,
+	// Filter documents based on user's security clearance
+	filteredDocuments := make([]*models.Document, 0)
+	for _, doc := range documents {
+		if user.CanAccessClassification(doc.Classification.Level) {
+			filteredDocuments = append(filteredDocuments, doc)
+		}
+	}
+
+	// Calculate pagination metadata
+	totalPages := int((total + int64(req.Limit) - 1) / int64(req.Limit))
+	currentPage := (req.Skip / req.Limit) + 1
+
+	// Return search results in the same format as list endpoint
+	c.JSON(http.StatusOK, gin.H{
+		"data": filteredDocuments,
+		"pagination": gin.H{
+			"page":       currentPage,
+			"limit":      req.Limit,
+			"total":      total,
+			"totalPages": totalPages,
+		},
 	})
 }
 
@@ -421,15 +444,42 @@ func (h *DocumentHandler) ListDocuments(c *gin.Context) {
 		skip = 0
 	}
 
-	// Note: In a real implementation, you would fetch documents from the database
-	// with proper filtering based on user's security clearance
-	// For now, we'll return a placeholder response
+	// Parse sort parameters
+	sortBy := c.DefaultQuery("sortBy", "uploaded_at")
+	sortOrder := c.DefaultQuery("sortOrder", "desc")
 
-	c.JSON(http.StatusOK, SearchResponse{
-		Documents: []*models.Document{},
-		Total:     0,
-		Limit:     limit,
-		Skip:      skip,
+	// Fetch documents from database
+	documents, total, err := h.documentService.ListDocuments(limit, skip, sortBy, sortOrder)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Failed to fetch documents",
+			Message: err.Error(),
+			Code:    "FETCH_FAILED",
+		})
+		return
+	}
+
+	// Filter documents based on user's security clearance
+	filteredDocuments := make([]*models.Document, 0)
+	for _, doc := range documents {
+		if user.CanAccessClassification(doc.Classification.Level) {
+			filteredDocuments = append(filteredDocuments, doc)
+		}
+	}
+
+	// Calculate pagination metadata
+	totalPages := int((total + int64(limit) - 1) / int64(limit))
+	currentPage := (skip / limit) + 1
+
+	// Create proper paginated response format that matches frontend expectations
+	c.JSON(http.StatusOK, gin.H{
+		"data": filteredDocuments,
+		"pagination": gin.H{
+			"page":       currentPage,
+			"limit":      limit,
+			"total":      total,
+			"totalPages": totalPages,
+		},
 	})
 }
 
@@ -670,9 +720,9 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"document_id":        doc.ID.Hex(),
-		"content":            doc.Content,
-		"extracted_entities": doc.ExtractedEntities,
+		"document_id":          doc.ID.Hex(),
+		"content":              doc.Content,
+		"extracted_entities":   doc.ExtractedEntities,
 		"processing_timestamp": doc.ProcessingTimestamp,
 	})
 }

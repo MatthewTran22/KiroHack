@@ -17,6 +17,7 @@ import { useDocuments, useDeleteDocument, useDeleteDocuments } from '@/hooks/use
 import { useDocumentStore } from '@/stores/documents';
 import { Document, DocumentFilters as DocumentFiltersType } from '@/types';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function DocumentsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -38,7 +39,8 @@ export default function DocumentsPage() {
     setViewMode,
   } = useDocumentStore();
 
-  // Use React Query hooks instead of the old pattern
+  // TanStack Query hooks
+  const queryClient = useQueryClient();
   const { data: documentsResponse, isLoading, error, refetch } = useDocuments();
   const { mutate: deleteDocument } = useDeleteDocument();
   const { mutate: deleteSelectedDocuments } = useDeleteDocuments();
@@ -118,8 +120,13 @@ export default function DocumentsPage() {
 
   const handleUploadComplete = (uploadedDocuments: Document[]) => {
     setShowUploadModal(false);
-    // Refresh documents list
+    // Force refresh documents list to show newly uploaded documents
     refetch();
+
+    // Also clear any cached data to ensure fresh fetch
+    // This follows TanStack Query best practices for data freshness
+    queryClient.removeQueries({ queryKey: ['documents'] });
+    setTimeout(() => refetch(), 100); // Small delay to ensure cache is cleared
   };
 
   const handleUploadError = (error: string) => {

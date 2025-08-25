@@ -11,6 +11,11 @@ const documentsAPI = {
   async getDocuments(filters?: DocumentFilters, sort?: DocumentSortOption): Promise<PaginatedResponse<Document>> {
     const params = new URLSearchParams();
 
+    // Default pagination
+    params.append('limit', '20');
+    params.append('skip', '0');
+
+    // Add filters as query parameters
     if (filters?.searchQuery) params.append('search', filters.searchQuery);
     if (filters?.category) params.append('category', filters.category);
     if (filters?.classification) params.append('classification', filters.classification);
@@ -20,9 +25,18 @@ const documentsAPI = {
       params.append('startDate', filters.dateRange.start.toISOString());
       params.append('endDate', filters.dateRange.end.toISOString());
     }
+    
+    // Add sorting parameters with better default mapping
     if (sort) {
-      params.append('sortBy', sort.field);
+      let sortBy = sort.field;
+      // Map frontend field names to backend field names
+      if (sortBy === 'uploadedAt') sortBy = 'uploaded_at';
+      params.append('sortBy', sortBy);
       params.append('sortOrder', sort.direction);
+    } else {
+      // Default sorting
+      params.append('sortBy', 'uploaded_at');
+      params.append('sortOrder', 'desc');
     }
 
     const token = tokenManager.getToken();
@@ -38,10 +52,46 @@ const documentsAPI = {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to fetch documents');
+      const errorText = await response.text();
+      console.error('Document fetch error:', response.status, errorText);
+      throw new Error(`Failed to fetch documents: ${response.status}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('Documents API response:', result);
+    
+    // Transform backend Document format to frontend Document format if needed
+    if (result.data) {
+      const transformedDocuments = result.data.map((doc: any) => ({
+        id: doc.id || doc._id,
+        name: doc.name,
+        type: doc.content_type || doc.contentType || 'application/octet-stream',
+        size: doc.size,
+        uploadedAt: new Date(doc.uploaded_at || doc.uploadedAt),
+        userId: doc.uploaded_by || doc.uploadedBy,
+        status: doc.processing_status || doc.status || 'completed',
+        classification: doc.classification?.level?.toLowerCase() || 'internal',
+        category: doc.metadata?.category || 'general',
+        tags: doc.metadata?.tags || [],
+        metadata: {
+          title: doc.metadata?.title,
+          description: doc.metadata?.description,
+          author: doc.metadata?.author,
+          department: doc.metadata?.department,
+          category: doc.metadata?.category,
+          keywords: doc.metadata?.tags,
+          language: doc.metadata?.language,
+          version: doc.metadata?.version,
+        },
+      }));
+
+      return {
+        data: transformedDocuments,
+        pagination: result.pagination,
+      };
+    }
+
+    return result;
   },
 
   async getDocument(id: string): Promise<Document> {
@@ -269,24 +319,26 @@ export function useUploadDocuments() {
         completeUpload(fileId, doc);
       });
 
-      // Invalidate and refetch documents list
-      queryClient.invalidateQueries({ queryKey: queryKeys.documents.lists() });
+      // According to TanStack Query docs, invalidateQueries should refetch active queries
+      // First invalidate all document list queries
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.lists(),
+        refetchType: 'active'
+      });
 
-      // Optimistically add documents to cache
-      queryClient.setQueryData(
-        queryKeys.documents.lists(),
-        (oldData: PaginatedResponse<Document> | undefined) => {
-          if (!oldData) return oldData;
-          return {
-            ...oldData,
-            data: [...documents, ...oldData.data],
-            pagination: {
-              ...oldData.pagination,
-              total: oldData.pagination.total + documents.length,
-            },
-          };
-        }
-      );
+      // Also force refetch the current query with exact match
+      const { filters, sortBy } = useDocumentStore.getState();
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.documents.list({ filters, sortBy }),
+        exact: true,
+        refetchType: 'active'
+      });
+
+      // Force refetch all documents queries to ensure data freshness
+      queryClient.refetchQueries({
+        queryKey: ['documents'],
+        type: 'active'
+      });
     },
     onError: (error, { files }) => {
       // Update upload progress with error

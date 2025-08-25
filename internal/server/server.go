@@ -164,8 +164,17 @@ func (s *Server) initializeServices() error {
 	}
 	s.authService = auth.NewAuthService(db.Collection("users"), redisClient, jwtConfig)
 
-	// Initialize embedding service (placeholder)
-	embeddingService := &embedding.Service{} // This would be properly initialized
+	// Initialize embedding service
+	embeddingConfig := &embedding.Config{
+		GeminiAPIKey: s.config.AI.LLMAPIKey,
+		MongoDB:      db,
+		Redis:        redisClient,
+		Logger:       s.logger,
+	}
+	embeddingService, err := embedding.NewService(embeddingConfig)
+	if err != nil {
+		return fmt.Errorf("failed to initialize embedding service: %w", err)
+	}
 
 	// Initialize consultation service
 	consultationConfig := &consultation.Config{
