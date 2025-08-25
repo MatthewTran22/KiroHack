@@ -3,12 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  Home, 
-  MessageSquare, 
-  FileText, 
-  History, 
-  Settings, 
+import {
+  Home,
+  MessageSquare,
+  FileText,
+  History,
+  Settings,
   Shield,
   BarChart3,
   Users,
@@ -119,13 +119,13 @@ export function Sidebar({ className }: SidebarProps) {
     <>
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
           aria-hidden="true"
         />
       )}
-      
+
       {/* Sidebar */}
       <aside
         className={cn(

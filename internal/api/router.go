@@ -87,7 +87,7 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 			documents.GET("", documentHandler.ListDocuments)
 			documents.POST("/search", documentHandler.SearchDocuments)
 			documents.POST("/validate", documentHandler.ValidateDocument)
-			
+
 			// Document-specific endpoints
 			documents.GET("/:id", documentHandler.GetDocument)
 			documents.PUT("/:id", documentHandler.UpdateDocument)
@@ -95,6 +95,7 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 			documents.POST("/:id/process", documentHandler.ProcessDocument)
 			documents.GET("/:id/status", documentHandler.GetProcessingStatus)
 			documents.GET("/:id/content", documentHandler.GetDocumentContent)
+			documents.GET("/:id/file", documentHandler.GetDocumentFile)
 		}
 
 		// Consultation endpoints
@@ -106,7 +107,7 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 			consultations.POST("/search", consultationHandler.SearchConsultations)
 			consultations.GET("/history", consultationHandler.GetConsultationHistory)
 			consultations.GET("/analytics", RequireRole(models.UserRoleAdmin), consultationHandler.GetConsultationAnalytics)
-			
+
 			// Session-specific endpoints
 			consultations.GET("/:id", consultationHandler.GetConsultation)
 			consultations.POST("/:id/continue", consultationHandler.ContinueConsultation)
@@ -132,7 +133,7 @@ func SetupRoutes(router *gin.Engine, config *RouterConfig) {
 			knowledge.GET("/types", knowledgeHandler.GetKnowledgeTypes)
 			knowledge.GET("/stats", knowledgeHandler.GetKnowledgeStats)
 			knowledge.GET("/graph", knowledgeHandler.GetKnowledgeGraph)
-			
+
 			// Knowledge item-specific endpoints
 			knowledge.GET("/:id", knowledgeHandler.GetKnowledge)
 			knowledge.PUT("/:id", knowledgeHandler.UpdateKnowledge)
@@ -274,8 +275,8 @@ func getSystemConfig(c *gin.Context) {
 	// Return non-sensitive configuration information
 	c.JSON(200, gin.H{
 		"config": gin.H{
-			"max_file_size":        "50MB",
-			"supported_formats":    []string{"pdf", "doc", "docx", "txt"},
+			"max_file_size":         "50MB",
+			"supported_formats":     []string{"pdf", "doc", "docx", "txt"},
 			"max_consultation_time": "60s",
 			"rate_limits": gin.H{
 				"requests_per_minute": 60,

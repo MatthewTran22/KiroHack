@@ -3,18 +3,20 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { 
-  Search, 
-  Bell, 
-  Menu, 
-  Sun, 
-  Moon, 
-  User, 
-  Settings, 
+import {
+  Search,
+  Bell,
+  Menu,
+  Sun,
+  Moon,
+  User,
+  Settings,
   LogOut,
   Plus,
   Upload
 } from 'lucide-react';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { WebSocketStatusCompact } from '@/components/ui/websocket-status';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,9 +40,9 @@ interface HeaderProps {
   isSearching?: boolean;
 }
 
-export function Header({ 
-  onSearch, 
-  onNewConsultation, 
+export function Header({
+  onSearch,
+  onNewConsultation,
   searchResults = []
 }: HeaderProps) {
   const router = useRouter();
@@ -49,6 +51,11 @@ export function Header({
   const { toggleSidebar, notifications } = useUIStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // WebSocket connection for real-time features
+  const { status: wsStatus, connect: wsConnect } = useWebSocket({
+    autoConnect: true,
+  });
 
   const unreadNotifications = notifications.filter(n => !n.read).length;
 
@@ -99,14 +106,14 @@ export function Header({
           >
             <Menu className="h-5 w-5" />
           </Button>
-          
+
           <div className="hidden sm:flex items-center gap-2 min-w-0">
             <div className="h-7 w-7 sm:h-8 sm:w-8 rounded bg-primary flex items-center justify-center shrink-0">
               <span className="text-primary-foreground font-bold text-xs sm:text-sm">AI</span>
             </div>
             <span className="font-semibold text-base sm:text-lg truncate">Gov Consultant</span>
           </div>
-          
+
           {/* Mobile logo */}
           <div className="flex sm:hidden items-center gap-2">
             <div className="h-7 w-7 rounded bg-primary flex items-center justify-center">
@@ -128,7 +135,7 @@ export function Header({
               aria-label="Search documents and consultations"
             />
           </form>
-          
+
           {/* Search Results Dropdown */}
           {showSearchResults && searchResults.length > 0 && (
             <div className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
@@ -170,7 +177,7 @@ export function Header({
             <Plus className="h-4 w-4 sm:mr-2" />
             <span className="hidden lg:inline">New Chat</span>
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -191,6 +198,13 @@ export function Header({
           >
             <Plus className="h-4 w-4" />
           </Button>
+
+          {/* WebSocket Status */}
+          <WebSocketStatusCompact
+            status={wsStatus}
+            onReconnect={wsConnect}
+            className="hidden sm:flex"
+          />
 
           {/* Theme Toggle */}
           <Button
@@ -214,8 +228,8 @@ export function Header({
           >
             <Bell className="h-4 w-4" />
             {unreadNotifications > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-1 -right-1 h-4 w-4 sm:h-5 sm:w-5 flex items-center justify-center p-0 text-xs min-w-0"
               >
                 {unreadNotifications > 99 ? '99+' : unreadNotifications}

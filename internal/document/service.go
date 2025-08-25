@@ -8,12 +8,14 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"ai-government-consultant/internal/models"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // SupportedFormats defines the supported document formats
@@ -124,11 +126,14 @@ func (s *Service) UploadDocument(file *multipart.FileHeader, metadata models.Doc
 		return nil, fmt.Errorf("failed to read file content: %w", err)
 	}
 
+	// Convert content to string with UTF-8 validation and cleaning
+	contentStr := s.sanitizeUTF8Content(content)
+
 	// Create document model
 	doc := &models.Document{
 		ID:               primitive.NewObjectID(),
 		Name:             file.Filename,
-		Content:          string(content), // For now, store as string - will be processed later
+		Content:          contentStr,
 		ContentType:      file.Header.Get("Content-Type"),
 		Size:             file.Size,
 		UploadedBy:       uploadedBy,
@@ -321,4 +326,217 @@ func (s *Service) updateProcessingStatus(documentID primitive.ObjectID, status m
 	}
 
 	s.collection.UpdateOne(ctx, bson.M{"_id": documentID}, update)
+}
+
+// sanitizeUTF8Content converts byte content to a valid UTF-8 string
+func (s *Service) sanitizeUTF8Content(content []byte) string {
+	// First, try to convert directly to string
+	str := string(content)
+
+	// Check if the string is valid UTF-8
+	if utf8.ValidString(str) {
+		return str
+	}
+
+	// If not valid UTF-8, clean it up
+	// This will replace invalid UTF-8 sequences with the replacement character
+	validStr := strings.ToValidUTF8(str, "�")
+
+	// Additional cleaning: remove null bytes and other problematic characters
+	validStr = strings.ReplaceAll(validStr, "\x00", "")
+
+	// Remove other control characters except common whitespace
+	var cleaned strings.Builder
+	for _, r := range validStr {
+		// Keep printable characters and common whitespace (space, tab, newline, carriage return)
+		if r >= 32 || r == '\t' || r == '\n' || r == '\r' {
+			cleaned.WriteRune(r)
+		}
+	}
+
+	return cleaned.String()
+}
+
+// ListDocuments returns a paginated list of documents
+func (s *Service) ListDocuments(limit, skip int, sortBy, sortOrder string) ([]*models.Document, int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Debug: log the collection name
+	collectionName := s.collection.Name()
+	fmt.Printf("DEBUG: Querying collection: %s\n", collectionName)
+
+	// Get total count first
+	total, err := s.collection.CountDocuments(ctx, bson.M{})
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count documents: %w", err)
+	}
+	fmt.Printf("DEBUG: Total document count: %d\n", total)
+
+	// If no documents exist, return early
+	if total == 0 {
+		return []*models.Document{}, 0, nil
+	}
+
+	// Build find options with proper sorting
+	skip64 := int64(skip)
+	limit64 := int64(limit)
+	findOptions := options.Find().SetSkip(skip64).SetLimit(limit64)
+	
+	// Add sorting based on sortBy parameter
+	if sortBy != "" {
+		sortDirection := 1
+		if sortOrder == "desc" {
+			sortDirection = -1
+		}
+		
+		// Handle different sort field mappings
+		var sortField string
+		switch sortBy {
+		case "uploadedAt", "uploaded_at":
+			sortField = "uploaded_at"
+		case "name":
+			sortField = "name"
+		case "size":
+			sortField = "size"
+		case "category":
+			sortField = "metadata.category"
+		case "classification":
+			sortField = "classification.level"
+		default:
+			sortField = "uploaded_at" // Default fallback
+		}
+		
+		findOptions.SetSort(bson.D{{Key: sortField, Value: sortDirection}})
+	} else {
+		// Default sort by upload date descending
+		findOptions.SetSort(bson.D{{Key: "uploaded_at", Value: -1}})
+	}
+
+	// Find documents
+	cursor, err := s.collection.Find(ctx, bson.M{}, findOptions)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to find documents: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var documents []*models.Document
+	for cursor.Next(ctx) {
+		var doc models.Document
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, 0, fmt.Errorf("failed to decode document: %w", err)
+		}
+		documents = append(documents, &doc)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, 0, fmt.Errorf("cursor error: %w", err)
+	}
+
+	fmt.Printf("DEBUG: Found %d documents\n", len(documents))
+	return documents, total, nil
+}
+
+// SearchDocuments searches for documents based on various criteria
+func (s *Service) SearchDocuments(query string, category models.DocumentCategory, tags []string, department, author string, limit, skip int, sortBy, sortOrder string) ([]*models.Document, int64, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Build search filter
+	filter := bson.M{}
+	
+	// Text search if query is provided
+	if query != "" {
+		filter["$text"] = bson.M{"$search": query}
+	}
+	
+	// Category filter
+	if category != "" {
+		filter["metadata.category"] = category
+	}
+	
+	// Tags filter
+	if len(tags) > 0 {
+		filter["metadata.tags"] = bson.M{"$in": tags}
+	}
+	
+	// Department filter
+	if department != "" {
+		filter["metadata.department"] = department
+	}
+	
+	// Author filter
+	if author != "" {
+		filter["metadata.author"] = bson.M{"$regex": author, "$options": "i"}
+	}
+
+	// Get total count
+	total, err := s.collection.CountDocuments(ctx, filter)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count documents: %w", err)
+	}
+
+	// Prepare find options
+	findOptions := options.Find().SetSkip(int64(skip)).SetLimit(int64(limit))
+	
+	// Add sorting if specified
+	if sortBy != "" {
+		sortDirection := 1
+		if sortOrder == "desc" {
+			sortDirection = -1
+		}
+		findOptions.SetSort(bson.M{sortBy: sortDirection})
+	}
+
+	// Find documents
+	cursor, err := s.collection.Find(ctx, filter, findOptions)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to search documents: %w", err)
+	}
+	defer cursor.Close(ctx)
+
+	var documents []*models.Document
+	for cursor.Next(ctx) {
+		var doc models.Document
+		if err := cursor.Decode(&doc); err != nil {
+			return nil, 0, fmt.Errorf("failed to decode document: %w", err)
+		}
+		documents = append(documents, &doc)
+	}
+
+	if err := cursor.Err(); err != nil {
+		return nil, 0, fmt.Errorf("cursor error: %w", err)
+	}
+
+	return documents, total, nil
+}
+
+// GetDocumentFile retrieves the raw file data for a document
+func (s *Service) GetDocumentFile(documentID string) ([]byte, error) {
+	objID, err := primitive.ObjectIDFromHex(documentID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid document ID: %w", err)
+	}
+
+	// First get the document to check if it exists and get file path
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var doc models.Document
+	err = s.collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("document not found")
+		}
+		return nil, fmt.Errorf("failed to find document: %w", err)
+	}
+
+	// For now, return the content as bytes
+	// TODO: Implement proper file storage system
+	if doc.Content == "" {
+		return nil, fmt.Errorf("document content not available")
+	}
+
+	// Convert content string to bytes
+	return []byte(doc.Content), nil
 }

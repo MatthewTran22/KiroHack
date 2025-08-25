@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthStore>()(
 
       login: async (credentials: LoginCredentials) => {
         const { loginAttempts, isLocked } = get();
-        
+
         if (isLocked) {
           set({ error: 'Account is temporarily locked due to too many failed attempts' });
           return;
@@ -52,9 +52,9 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           const response: AuthResponse = await apiClient.login(credentials);
-          
+
           tokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token);
-          
+
           set({
             user: response.user,
             isAuthenticated: true,
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthStore>()(
         } catch (error: unknown) {
           const newAttempts = loginAttempts + 1;
           const shouldLock = newAttempts >= 3;
-          
+
           const errorMessage = error instanceof Error ? error.message : 'Login failed';
           set({
             isLoading: false,
@@ -87,12 +87,15 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         set({ isLoading: true });
-        
+
         try {
+          // Try to call logout endpoint, but don't fail if server is down
           await apiClient.logout();
         } catch (error) {
-          console.error('Logout error:', error);
+          console.error('Logout error (server may be down):', error);
+          // Continue with local logout even if server call fails
         } finally {
+          // Always clear tokens and reset state
           tokenManager.clearTokens();
           set({
             ...initialState,
@@ -102,10 +105,17 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       refreshToken: async () => {
+        const refreshToken = tokenManager.getRefreshToken();
+        if (!refreshToken) {
+          // No refresh token available, logout
+          get().logout();
+          throw new Error('No refresh token available');
+        }
+
         try {
           const response: AuthResponse = await apiClient.refreshToken();
           tokenManager.setTokens(response.tokens.access_token, response.tokens.refresh_token);
-          
+
           set({
             user: response.user,
             isAuthenticated: true,
@@ -168,9 +178,9 @@ export const useAuthStore = create<AuthStore>()(
       },
 
       clearError: () => set({ error: null }),
-      
+
       resetLoginAttempts: () => set({ loginAttempts: 0, isLocked: false }),
-      
+
       setLoading: (loading: boolean) => set({ isLoading: loading }),
     }),
     {

@@ -23,7 +23,7 @@ export class AuthTokenManager {
       // Try localStorage first
       this.token = localStorage.getItem(TOKEN_STORAGE_KEY);
       this.refreshToken = localStorage.getItem(REFRESH_TOKEN_STORAGE_KEY);
-      
+
       // If not in localStorage, try cookies
       if (!this.token) {
         this.token = this.getCookie(TOKEN_STORAGE_KEY);
@@ -36,7 +36,7 @@ export class AuthTokenManager {
 
   private getCookie(name: string): string | null {
     if (typeof document === 'undefined') return null;
-    
+
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
     if (parts.length === 2) {
@@ -48,12 +48,12 @@ export class AuthTokenManager {
   setTokens(token: string, refreshToken: string): void {
     this.token = token;
     this.refreshToken = refreshToken;
-    
+
     if (typeof window !== 'undefined') {
       // Store in localStorage
       localStorage.setItem(TOKEN_STORAGE_KEY, token);
       localStorage.setItem(REFRESH_TOKEN_STORAGE_KEY, refreshToken);
-      
+
       // Also store in cookies for middleware access
       document.cookie = `${TOKEN_STORAGE_KEY}=${token}; path=/; secure; samesite=strict`;
       document.cookie = `${REFRESH_TOKEN_STORAGE_KEY}=${refreshToken}; path=/; secure; samesite=strict`;
@@ -71,12 +71,12 @@ export class AuthTokenManager {
   clearTokens(): void {
     this.token = null;
     this.refreshToken = null;
-    
+
     if (typeof window !== 'undefined') {
       // Clear localStorage
       localStorage.removeItem(TOKEN_STORAGE_KEY);
       localStorage.removeItem(REFRESH_TOKEN_STORAGE_KEY);
-      
+
       // Clear cookies
       document.cookie = `${TOKEN_STORAGE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
       document.cookie = `${REFRESH_TOKEN_STORAGE_KEY}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;

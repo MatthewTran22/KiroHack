@@ -58,9 +58,10 @@ export interface Document {
   type: string;
   size: number;
   uploadedAt: Date;
-  userId: string;
-  status: 'uploading' | 'processing' | 'completed' | 'error';
-  classification?: 'public' | 'internal' | 'confidential' | 'secret';
+  userId?: string;
+  status: 'uploading' | 'processing' | 'completed' | 'error' | 'uploaded';
+  classification: 'public' | 'internal' | 'confidential' | 'secret';
+  category: string;
   tags: string[];
   metadata: DocumentMetadata;
   downloadUrl?: string;

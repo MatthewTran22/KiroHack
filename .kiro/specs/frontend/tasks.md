@@ -79,7 +79,7 @@ This implementation plan converts the AI Government Consultant frontend design i
   - Write tests for state management and data synchronization using Docker containers for API testing
   - _Requirements: 1.2, 3.2, 3.4_
 
-- [ ] 5. Build API client and backend integration
+- [x] 5. Build API client and backend integration
   - Create type-safe API client with authentication headers and error handling
   - Implement API endpoints for documents, consultations, and user management
   - Add request/response interceptors for token refresh and error handling
@@ -97,7 +97,7 @@ This implementation plan converts the AI Government Consultant frontend design i
   - Write tests for document upload workflows and file handling using Docker containers for end-to-end validation
   - _Requirements: 1.1, 1.3, 1.4, 3.1, 3.2_
 
-- [ ] 7. Build consultation interface with chat functionality
+- [x] 7. Build consultation interface with chat functionality
   - Create Consultation page with ChatGPT-like interface using Shadcn components
   - Implement ChatInterface component with real-time messaging
   - Add consultation type selection and context setting
@@ -106,7 +106,7 @@ This implementation plan converts the AI Government Consultant frontend design i
   - Write tests for chat interface and message handling using Docker containers for real-time communication testing
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5_
 
-- [ ] 8. Implement WebSocket integration for real-time features
+- [x] 8. Implement WebSocket integration for real-time features
   - Set up WebSocket client for real-time chat communication
   - Add connection management with automatic reconnection
   - Implement typing indicators and real-time message delivery
@@ -115,14 +115,17 @@ This implementation plan converts the AI Government Consultant frontend design i
   - Write tests for WebSocket functionality and connection management using Docker containers for real-time backend integration
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 9. Create voice interaction system with speech-to-text and text-to-speech
-  - Build voice control panel component for the consultation interface
-  - Implement speech-to-text functionality with real-time transcription display
-  - Add text-to-speech playback of AI responses with voice selection
-  - Create voice activity detection with visual audio level indicators
-  - Implement push-to-talk and continuous listening modes
-  - Add voice settings panel for speech rate, voice selection, and preferences
-  - Write tests for voice functionality and audio processing using Docker containers for speech service integration
+- [ ] 9. Create voice-first consultation interface with document-based queries
+  - Replace consultation type selection with voice agent standby interface on new consultation page
+  - Build voice agent component with visual standby state and past conversations display
+  - Implement document reference system for users to select policies/documents as consultation context
+  - Create voice interaction panel with push-to-talk and continuous listening modes using internal `/api/v1/speech/transcribe` and `/api/v1/speech/synthesize` endpoints
+  - Add fallback text input option when voice doesn't work properly
+  - Integrate with vector search via `/api/v1/embeddings/search` endpoint for document-based context retrieval
+  - Connect to consultation service endpoints (`/api/v1/consultations`) for AI responses based on document context
+  - Implement real-time transcription display using ElevenLabs service endpoints (`/tts`, `/stt`, `/voices`)
+  - Create conversation history display below voice agent interface showing past document-based consultationsprolly just
+  - Write tests for voice functionality, document integration, and audio processing using Docker containers for speech service integration
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
 - [ ] 10. Build dashboard with overview and quick actions

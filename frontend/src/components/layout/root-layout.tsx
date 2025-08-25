@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Header } from './header';
 import { Sidebar } from './sidebar';
 import { useAuthStore } from '@/stores/auth';
+import { tokenManager } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 interface RootLayoutProps {
@@ -22,23 +23,26 @@ export function RootLayout({ children }: RootLayoutProps) {
   const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {
-    // Check authentication status on mount
-    checkAuth();
-  }, [checkAuth]);
-
-  useEffect(() => {
-    // Redirect to login if not authenticated and not on a public route
-    if (!isAuthenticated && !isPublicRoute) {
+    // Quick token check first - if no token, go directly to login
+    const token = tokenManager.getToken();
+    if (!token && !isPublicRoute) {
       router.push('/login');
       return;
     }
 
+    // Only do full auth check if we have a token
+    if (token) {
+      checkAuth();
+    }
+  }, [checkAuth, isPublicRoute, router]);
+
+  useEffect(() => {
     // Redirect to dashboard if authenticated and on login page
     if (isAuthenticated && pathname === '/login') {
       router.push('/dashboard');
       return;
     }
-  }, [isAuthenticated, isPublicRoute, pathname, router]);
+  }, [isAuthenticated, pathname, router]);
 
   const handleSearch = (query: string) => {
     // TODO: Implement global search functionality
@@ -70,14 +74,14 @@ export function RootLayout({ children }: RootLayoutProps) {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <Sidebar />
-      
+
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        <Header 
+        <Header
           onSearch={handleSearch}
           onNewConsultation={handleNewConsultation}
         />
-        
-        <main 
+
+        <main
           className={cn(
             "flex-1 overflow-y-auto bg-background transition-all duration-200",
             "focus:outline-none",

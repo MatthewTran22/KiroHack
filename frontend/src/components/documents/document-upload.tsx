@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useDocumentStore } from '@/stores/documents';
-import { useDocuments } from '@/hooks/useDocuments';
+import { useUploadDocuments } from '@/hooks/useDocuments';
 import { DocumentMetadata } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -66,12 +66,12 @@ export function DocumentUpload({
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [tagInput, setTagInput] = useState('');
 
-  const { uploadDocuments } = useDocuments();
+  const uploadDocumentsMutation = useUploadDocuments();
 
   const onDrop = useCallback((acceptedFiles: File[], rejectedFiles: any[]) => {
     // Handle rejected files
     if (rejectedFiles.length > 0) {
-      const errors = rejectedFiles.map(({ file, errors }) => 
+      const errors = rejectedFiles.map(({ file, errors }) =>
         `${file.name}: ${errors.map((e: any) => e.message).join(', ')}`
       );
       onUploadError?.(errors.join('\n'));
@@ -138,7 +138,7 @@ export function DocumentUpload({
 
   const addTag = (fileId: string, tag: string) => {
     if (!tag.trim()) return;
-    
+
     updateFileMetadata(fileId, {
       tags: [...(files.find(f => f.id === fileId)?.tags || []), tag.trim()]
     });
@@ -147,7 +147,7 @@ export function DocumentUpload({
   const removeTag = (fileId: string, tagIndex: number) => {
     const file = files.find(f => f.id === fileId);
     if (!file) return;
-    
+
     updateFileMetadata(fileId, {
       tags: file.tags.filter((_, index) => index !== tagIndex)
     });
@@ -179,7 +179,19 @@ export function DocumentUpload({
       }, 500);
 
       // Upload documents
-      const uploadedDocuments = await uploadDocuments(uploadRequests);
+      const uploadedDocuments = await uploadDocumentsMutation.mutateAsync({
+        files: uploadRequests.map(req => req.file),
+        metadata: uploadRequests.map(req => ({
+          title: req.metadata.title,
+          author: req.metadata.author,
+          department: req.metadata.department,
+          category: req.classification === 'public' ? 'general' :
+            req.classification === 'internal' ? 'operations' :
+              req.classification === 'confidential' ? 'policy' : 'strategy',
+          language: req.metadata.language || 'en',
+          tags: req.tags
+        }))
+      });
 
       clearInterval(progressInterval);
 
@@ -303,7 +315,7 @@ export function DocumentUpload({
                 className="flex items-center space-x-3 p-3 border rounded-lg"
               >
                 {getStatusIcon(fileData.status)}
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium truncate">
@@ -331,7 +343,7 @@ export function DocumentUpload({
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center justify-between mt-1">
                     <p className="text-xs text-muted-foreground">
                       {formatFileSize(fileData.file.size)} • {fileData.classification}

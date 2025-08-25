@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { Upload, Grid, List, Search, Filter, Download, Trash2, MoreHorizontal } from 'lucide-react';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DocumentUpload } from '@/components/documents/document-upload';
 import { DocumentGrid } from '@/components/documents/document-grid';
 import { DocumentList } from '@/components/documents/document-list';
@@ -17,12 +18,13 @@ import { useDocuments, useDeleteDocument, useDeleteDocuments } from '@/hooks/use
 import { useDocumentStore } from '@/stores/documents';
 import { Document, DocumentFilters as DocumentFiltersType } from '@/types';
 import { cn } from '@/lib/utils';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function DocumentsPage() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
-  const [editDocument, setEditDocument] = useState<Document | null>(null);
+  // const [editDocument, setEditDocument] = useState<Document | null>(null); // Not used yet
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<DocumentFiltersType>({});
   const [sortField, setSortField] = useState<string>('uploadedAt');
@@ -38,7 +40,8 @@ export default function DocumentsPage() {
     setViewMode,
   } = useDocumentStore();
 
-  // Use React Query hooks instead of the old pattern
+  // TanStack Query hooks
+  const queryClient = useQueryClient();
   const { data: documentsResponse, isLoading, error, refetch } = useDocuments();
   const { mutate: deleteDocument } = useDeleteDocument();
   const { mutate: deleteSelectedDocuments } = useDeleteDocuments();
@@ -67,7 +70,7 @@ export default function DocumentsPage() {
   const handleSort = (field: string, direction: 'asc' | 'desc') => {
     setSortField(field);
     setSortDirection(direction);
-    
+
     // Sort documents locally for now
     // In a real app, this would be handled by the API
   };
@@ -108,7 +111,7 @@ export default function DocumentsPage() {
   const handleBulkDelete = async () => {
     if (confirm(`Are you sure you want to delete ${selectedDocuments.length} document(s)?`)) {
       try {
-        await deleteDocuments(selectedDocuments);
+        deleteSelectedDocuments(selectedDocuments);
         clearSelection();
       } catch (error) {
         console.error('Bulk delete failed:', error);
@@ -118,8 +121,13 @@ export default function DocumentsPage() {
 
   const handleUploadComplete = (uploadedDocuments: Document[]) => {
     setShowUploadModal(false);
-    // Refresh documents list
-    loadDocuments(filters);
+    // Force refresh documents list to show newly uploaded documents
+    refetch();
+
+    // Also clear any cached data to ensure fresh fetch
+    // This follows TanStack Query best practices for data freshness
+    queryClient.removeQueries({ queryKey: ['documents'] });
+    setTimeout(() => refetch(), 100); // Small delay to ensure cache is cleared
   };
 
   const handleUploadError = (error: string) => {
@@ -130,23 +138,23 @@ export default function DocumentsPage() {
   // Sort documents
   const sortedDocuments = React.useMemo(() => {
     if (!documents) return [];
-    
+
     return [...documents].sort((a, b) => {
-      let aValue: any = a[sortField as keyof Document];
-      let bValue: any = b[sortField as keyof Document];
-      
+      let aValue: unknown = a[sortField as keyof Document];
+      let bValue: unknown = b[sortField as keyof Document];
+
       // Handle date sorting
       if (sortField === 'uploadedAt') {
         aValue = new Date(aValue).getTime();
         bValue = new Date(bValue).getTime();
       }
-      
+
       // Handle string sorting
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-      
+
       if (sortDirection === 'asc') {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
@@ -165,233 +173,237 @@ export default function DocumentsPage() {
   );
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Documents</h1>
-          <p className="text-muted-foreground">
-            Manage and organize your document library
-          </p>
+    <ErrorBoundary>
+      <div className="container mx-auto py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Documents</h1>
+            <p className="text-muted-foreground">
+              Manage and organize your document library
+            </p>
+          </div>
+          <Button onClick={() => setShowUploadModal(true)}>
+            <Upload className="h-4 w-4 mr-2" />
+            Upload Documents
+          </Button>
         </div>
-        <Button onClick={() => setShowUploadModal(true)}>
-          <Upload className="h-4 w-4 mr-2" />
-          Upload Documents
-        </Button>
-      </div>
 
-      {/* Search and Controls */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4 flex-1">
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search documents..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
-                className={cn(hasActiveFilters && 'bg-primary/10 border-primary')}
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                Filters
-                {hasActiveFilters && (
-                  <Badge variant="secondary" className="ml-2">
-                    Active
-                  </Badge>
-                )}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2">
-              {/* Bulk Actions */}
-              {selectedDocuments.length > 0 && (
-                <div className="flex items-center gap-2 mr-4">
-                  <span className="text-sm text-muted-foreground">
-                    {selectedDocuments.length} selected
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkDownload}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </Button>
+        {/* Search and Controls */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-1">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search documents..."
+                    value={searchQuery}
+                    onChange={(e) => handleSearch(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
-              )}
-
-              {/* View Toggle */}
-              <div className="flex items-center border rounded-lg">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                  className="rounded-r-none"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className="rounded-l-none"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-              </div>
-
-              {/* More Actions */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => loadDocuments(filters)}>
-                    Refresh
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={clearSelection}>
-                    Clear Selection
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Filters Sidebar */}
-        {showFilters && (
-          <div className="lg:col-span-1">
-            <DocumentFilters
-              filters={filters}
-              onFiltersChange={handleFiltersChange}
-              onClearFilters={handleClearFilters}
-            />
-          </div>
-        )}
-
-        {/* Documents Content */}
-        <div className={cn('space-y-6', showFilters ? 'lg:col-span-3' : 'lg:col-span-4')}>
-          {/* Results Summary */}
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {isLoading ? (
-                'Loading documents...'
-              ) : (
-                `${sortedDocuments.length} document${sortedDocuments.length !== 1 ? 's' : ''} found`
-              )}
-            </div>
-            {sortedDocuments.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                Sorted by {sortField} ({sortDirection === 'asc' ? 'ascending' : 'descending'})
-              </div>
-            )}
-          </div>
-
-          {/* Error State */}
-          {error && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="p-4">
-                <p className="text-red-600">Error loading documents: {error}</p>
                 <Button
                   variant="outline"
-                  size="sm"
-                  onClick={() => loadDocuments(filters)}
-                  className="mt-2"
+                  onClick={() => setShowFilters(!showFilters)}
+                  className={cn(hasActiveFilters && 'bg-primary/10 border-primary')}
                 >
-                  Retry
+                  <Filter className="h-4 w-4 mr-2" />
+                  Filters
+                  {hasActiveFilters && (
+                    <Badge variant="secondary" className="ml-2">
+                      Active
+                    </Badge>
+                  )}
                 </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Loading State */}
-          {isLoading && (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-muted-foreground">Loading documents...</p>
               </div>
+
+              <div className="flex items-center gap-2">
+                {/* Bulk Actions */}
+                {selectedDocuments.length > 0 && (
+                  <div className="flex items-center gap-2 mr-4">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedDocuments.length} selected
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDownload}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleBulkDelete}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
+
+                {/* View Toggle */}
+                <div className="flex items-center border rounded-lg">
+                  <Button
+                    variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('grid')}
+                    className="rounded-r-none"
+                  >
+                    <Grid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'list' ? 'default' : 'ghost'}
+                    size="sm"
+                    onClick={() => setViewMode('list')}
+                    className="rounded-l-none"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* More Actions */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => refetch()}>
+                      Refresh
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={clearSelection}>
+                      Clear Selection
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Filters Sidebar */}
+          {showFilters && (
+            <div className="lg:col-span-1">
+              <DocumentFilters
+                filters={filters}
+                onFiltersChange={handleFiltersChange}
+                onClearFilters={handleClearFilters}
+              />
             </div>
           )}
 
-          {/* Documents Display */}
-          {!isLoading && !error && (
-            <>
-              {viewMode === 'grid' ? (
-                <DocumentGrid
-                  documents={sortedDocuments}
-                  selectedDocuments={selectedDocuments}
-                  onSelectDocument={selectDocument}
-                  onDeselectDocument={deselectDocument}
-                  onPreviewDocument={handlePreviewDocument}
-                  onEditDocument={handleEditDocument}
-                  onDownloadDocument={handleDownloadDocument}
-                  onDeleteDocument={handleDeleteDocument}
-                />
-              ) : (
-                <DocumentList
-                  documents={sortedDocuments}
-                  selectedDocuments={selectedDocuments}
-                  onSelectDocument={selectDocument}
-                  onDeselectDocument={deselectDocument}
-                  onSelectAll={selectAllDocuments}
-                  onPreviewDocument={handlePreviewDocument}
-                  onEditDocument={handleEditDocument}
-                  onDownloadDocument={handleDownloadDocument}
-                  onDeleteDocument={handleDeleteDocument}
-                  onSort={handleSort}
-                  sortField={sortField}
-                  sortDirection={sortDirection}
-                />
+          {/* Documents Content */}
+          <div className={cn('space-y-6', showFilters ? 'lg:col-span-3' : 'lg:col-span-4')}>
+            {/* Results Summary */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-muted-foreground">
+                {isLoading ? (
+                  'Loading documents...'
+                ) : (
+                  `${sortedDocuments.length} document${sortedDocuments.length !== 1 ? 's' : ''} found`
+                )}
+              </div>
+              {sortedDocuments.length > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  Sorted by {sortField} ({sortDirection === 'asc' ? 'ascending' : 'descending'})
+                </div>
               )}
-            </>
-          )}
+            </div>
+
+            {/* Error State */}
+            {error && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="p-4">
+                  <p className="text-red-600">
+                    Error loading documents: {error instanceof Error ? error.message : String(error)}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                    className="mt-2"
+                  >
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-12">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading documents...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Documents Display */}
+            {!isLoading && !error && (
+              <>
+                {viewMode === 'grid' ? (
+                  <DocumentGrid
+                    documents={sortedDocuments}
+                    selectedDocuments={selectedDocuments}
+                    onSelectDocument={selectDocument}
+                    onDeselectDocument={deselectDocument}
+                    onPreviewDocument={handlePreviewDocument}
+                    onEditDocument={handleEditDocument}
+                    onDownloadDocument={handleDownloadDocument}
+                    onDeleteDocument={handleDeleteDocument}
+                  />
+                ) : (
+                  <DocumentList
+                    documents={sortedDocuments}
+                    selectedDocuments={selectedDocuments}
+                    onSelectDocument={selectDocument}
+                    onDeselectDocument={deselectDocument}
+                    onSelectAll={selectAllDocuments}
+                    onPreviewDocument={handlePreviewDocument}
+                    onEditDocument={handleEditDocument}
+                    onDownloadDocument={handleDownloadDocument}
+                    onDeleteDocument={handleDeleteDocument}
+                    onSort={handleSort}
+                    sortField={sortField}
+                    sortDirection={sortDirection}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </div>
+
+        {/* Upload Modal */}
+        <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Upload Documents</DialogTitle>
+            </DialogHeader>
+            <DocumentUpload
+              onUploadComplete={handleUploadComplete}
+              onUploadError={handleUploadError}
+              maxFiles={10}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Document Preview */}
+        <DocumentPreview
+          document={previewDocument}
+          isOpen={!!previewDocument}
+          onClose={() => setPreviewDocument(null)}
+          onEdit={handleEditDocument}
+          onDownload={handleDownloadDocument}
+          onDelete={handleDeleteDocument}
+        />
       </div>
-
-      {/* Upload Modal */}
-      <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Upload Documents</DialogTitle>
-          </DialogHeader>
-          <DocumentUpload
-            onUploadComplete={handleUploadComplete}
-            onUploadError={handleUploadError}
-            maxFiles={10}
-          />
-        </DialogContent>
-      </Dialog>
-
-      {/* Document Preview */}
-      <DocumentPreview
-        document={previewDocument}
-        isOpen={!!previewDocument}
-        onClose={() => setPreviewDocument(null)}
-        onEdit={handleEditDocument}
-        onDownload={handleDownloadDocument}
-        onDelete={handleDeleteDocument}
-      />
-    </div>
+    </ErrorBoundary>
   );
 }
