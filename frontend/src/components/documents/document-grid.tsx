@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DocumentPreviewThumbnail } from './document-preview-thumbnail';
 import { Document } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -106,145 +107,93 @@ export function DocumentGrid({
   }
 
   return (
-    <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4', className)}>
+    <div className={cn('grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6', className)}>
       {documents.map((document) => (
-        <Card
+        <div
           key={document.id}
           className={cn(
-            'group hover:shadow-md transition-shadow cursor-pointer',
-            selectedDocuments.includes(document.id) && 'ring-2 ring-primary'
+            'relative group',
+            selectedDocuments.includes(document.id) && 'ring-2 ring-primary ring-offset-2 rounded-lg'
           )}
         >
-          <CardContent className="p-4">
-            {/* Header with checkbox and menu */}
-            <div className="flex items-start justify-between mb-3">
-              <Checkbox
-                checked={selectedDocuments.includes(document.id)}
-                onCheckedChange={(checked) => handleSelectChange(document.id, checked as boolean)}
-                className="mt-1"
-              />
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => onPreviewDocument(document)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    Preview
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onDownloadDocument(document)}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Download
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => onEditDocument(document)}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={() => onDeleteDocument(document)}
-                    className="text-red-600"
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          {/* Selection checkbox */}
+          <div className="absolute top-2 left-2 z-10">
+            <Checkbox
+              checked={selectedDocuments.includes(document.id)}
+              onCheckedChange={(checked) => handleSelectChange(document.id, checked as boolean)}
+              className="bg-white/80 backdrop-blur-sm border-white shadow-sm data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+            />
+          </div>
 
-            {/* File icon and preview */}
-            <div 
-              className="flex flex-col items-center mb-4 cursor-pointer"
-              onClick={() => onPreviewDocument(document)}
+          {/* More options menu */}
+          <div className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-8 w-8 p-0 bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm"
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => onPreviewDocument(document)}>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onDownloadDocument(document)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => onEditDocument(document)}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => onDeleteDocument(document)}
+                  className="text-red-600"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+
+          {/* Document Preview Thumbnail */}
+          <DocumentPreviewThumbnail
+            document={document}
+            onClick={() => onPreviewDocument(document)}
+            className="h-48"
+          />
+
+          {/* Quick actions overlay */}
+          <div className="absolute bottom-2 left-2 right-2 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownloadDocument(document);
+              }}
+              className="h-8 px-2 bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm"
             >
-              {document.thumbnail ? (
-                <img
-                  src={document.thumbnail}
-                  alt={document.name}
-                  className="w-16 h-20 object-cover rounded border"
-                />
-              ) : (
-                getFileIcon(document.type)
-              )}
-            </div>
-
-            {/* Document info */}
-            <div className="space-y-2">
-              <h3 
-                className="font-medium text-sm line-clamp-2 cursor-pointer hover:text-primary"
-                onClick={() => onPreviewDocument(document)}
-                title={document.name}
-              >
-                {document.name}
-              </h3>
-
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>{formatFileSize(document.size)}</span>
-                <span>{document.type.toUpperCase()}</span>
-              </div>
-
-              <div className="flex flex-wrap gap-1">
-                <Badge className={getStatusColor(document.status)} variant="secondary">
-                  {document.status}
-                </Badge>
-                {document.classification && (
-                  <Badge className={getClassificationColor(document.classification)} variant="secondary">
-                    {document.classification}
-                  </Badge>
-                )}
-              </div>
-
-              {document.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {document.tags.slice(0, 2).map((tag, index) => (
-                    <Badge key={index} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                  {document.tags.length > 2 && (
-                    <Badge variant="outline" className="text-xs">
-                      +{document.tags.length - 2}
-                    </Badge>
-                  )}
-                </div>
-              )}
-
-              <div className="text-xs text-muted-foreground">
-                {formatDate(document.uploadedAt)}
-              </div>
-            </div>
-
-            {/* Quick actions */}
-            <div className="flex justify-between mt-3 pt-3 border-t opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onPreviewDocument(document)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDownloadDocument(document)}
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onEditDocument(document)}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+              <Download className="h-3 w-3" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditDocument(document);
+              }}
+              className="h-8 px-2 bg-white/80 backdrop-blur-sm hover:bg-white shadow-sm"
+            >
+              <Edit className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
       ))}
     </div>
   );

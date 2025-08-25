@@ -726,3 +726,84 @@ func (h *DocumentHandler) GetDocumentContent(c *gin.Context) {
 		"processing_timestamp": doc.ProcessingTimestamp,
 	})
 }
+
+// GetDocumentFile serves the raw document file for previews and downloads
+func (h *DocumentHandler) GetDocumentFile(c *gin.Context) {
+	documentID := c.Param("id")
+	if documentID == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: "Document ID is required",
+			Code:  "MISSING_DOCUMENT_ID",
+		})
+		return
+	}
+
+	// Get user from context
+	userInterface, exists := c.Get("user")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, ErrorResponse{
+			Error: "User not authenticated",
+			Code:  "NOT_AUTHENTICATED",
+		})
+		return
+	}
+
+	user := userInterface.(*models.User)
+
+	// Check permissions
+	if !user.HasPermission("documents", "read") {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error: "Insufficient permissions to read document",
+			Code:  "INSUFFICIENT_PERMISSIONS",
+		})
+		return
+	}
+
+	// Get document
+	doc, err := h.documentService.GetProcessingStatus(documentID)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, ErrorResponse{
+				Error:   "Document not found",
+				Message: err.Error(),
+				Code:    "DOCUMENT_NOT_FOUND",
+			})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Failed to retrieve document",
+			Message: err.Error(),
+			Code:    "RETRIEVAL_FAILED",
+		})
+		return
+	}
+
+	// Check if user can access this classification level
+	if !user.CanAccessClassification(doc.Classification.Level) {
+		c.JSON(http.StatusForbidden, ErrorResponse{
+			Error: "Insufficient security clearance",
+			Code:  "INSUFFICIENT_CLEARANCE",
+		})
+		return
+	}
+
+	// Get file data from document service
+	fileData, err := h.documentService.GetDocumentFile(documentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, ErrorResponse{
+			Error:   "Failed to retrieve document file",
+			Message: err.Error(),
+			Code:    "FILE_RETRIEVAL_FAILED",
+		})
+		return
+	}
+
+	// Set appropriate headers
+	c.Header("Content-Type", doc.ContentType)
+	c.Header("Content-Length", strconv.Itoa(len(fileData)))
+	c.Header("Content-Disposition", "inline; filename=\""+doc.Name+"\"")
+
+	// Serve the file
+	c.Data(http.StatusOK, doc.ContentType, fileData)
+}

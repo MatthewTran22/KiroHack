@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
-import { apiClient } from '@/lib/api';
+// import { apiClient } from '@/lib/api'; // Not used in this file
 import { tokenManager } from '@/lib/auth';
 import { useDocumentStore } from '@/stores/documents';
 import { Document, PaginatedResponse } from '@/types';
@@ -25,10 +25,10 @@ const documentsAPI = {
       params.append('startDate', filters.dateRange.start.toISOString());
       params.append('endDate', filters.dateRange.end.toISOString());
     }
-    
+
     // Add sorting parameters with better default mapping
     if (sort) {
-      let sortBy = sort.field;
+      let sortBy: string = sort.field;
       // Map frontend field names to backend field names
       if (sortBy === 'uploadedAt') sortBy = 'uploaded_at';
       params.append('sortBy', sortBy);
@@ -54,15 +54,26 @@ const documentsAPI = {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Document fetch error:', response.status, errorText);
+
+      // Handle 401 Unauthorized - clear tokens and redirect to login
+      if (response.status === 401) {
+        tokenManager.clearTokens();
+        // Trigger a page reload to redirect to login
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login';
+        }
+        throw new Error('Authentication failed. Please log in again.');
+      }
+
       throw new Error(`Failed to fetch documents: ${response.status}`);
     }
 
     const result = await response.json();
     console.log('Documents API response:', result);
-    
+
     // Transform backend Document format to frontend Document format if needed
     if (result.data) {
-      const transformedDocuments = result.data.map((doc: any) => ({
+      const transformedDocuments = result.data.map((doc: Record<string, any>) => ({
         id: doc.id || doc._id,
         name: doc.name,
         type: doc.content_type || doc.contentType || 'application/octet-stream',

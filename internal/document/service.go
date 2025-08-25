@@ -407,10 +407,10 @@ func (s *Service) ListDocuments(limit, skip int, sortBy, sortOrder string) ([]*m
 			sortField = "uploaded_at" // Default fallback
 		}
 		
-		findOptions.SetSort(bson.D{{sortField, sortDirection}})
+		findOptions.SetSort(bson.D{{Key: sortField, Value: sortDirection}})
 	} else {
 		// Default sort by upload date descending
-		findOptions.SetSort(bson.D{{"uploaded_at", -1}})
+		findOptions.SetSort(bson.D{{Key: "uploaded_at", Value: -1}})
 	}
 
 	// Find documents
@@ -509,4 +509,34 @@ func (s *Service) SearchDocuments(query string, category models.DocumentCategory
 	}
 
 	return documents, total, nil
+}
+
+// GetDocumentFile retrieves the raw file data for a document
+func (s *Service) GetDocumentFile(documentID string) ([]byte, error) {
+	objID, err := primitive.ObjectIDFromHex(documentID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid document ID: %w", err)
+	}
+
+	// First get the document to check if it exists and get file path
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var doc models.Document
+	err = s.collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&doc)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, fmt.Errorf("document not found")
+		}
+		return nil, fmt.Errorf("failed to find document: %w", err)
+	}
+
+	// For now, return the content as bytes
+	// TODO: Implement proper file storage system
+	if doc.Content == "" {
+		return nil, fmt.Errorf("document content not available")
+	}
+
+	// Convert content string to bytes
+	return []byte(doc.Content), nil
 }

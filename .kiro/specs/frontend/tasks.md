@@ -115,14 +115,17 @@ This implementation plan converts the AI Government Consultant frontend design i
   - Write tests for WebSocket functionality and connection management using Docker containers for real-time backend integration
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 9. Create voice interaction system with speech-to-text and text-to-speech
-  - Build voice control panel component for the consultation interface
-  - Implement speech-to-text functionality with real-time transcription display
-  - Add text-to-speech playback of AI responses with voice selection
-  - Create voice activity detection with visual audio level indicators
-  - Implement push-to-talk and continuous listening modes
-  - Add voice settings panel for speech rate, voice selection, and preferences
-  - Write tests for voice functionality and audio processing using Docker containers for speech service integration
+- [ ] 9. Create voice-first consultation interface with document-based queries
+  - Replace consultation type selection with voice agent standby interface on new consultation page
+  - Build voice agent component with visual standby state and past conversations display
+  - Implement document reference system for users to select policies/documents as consultation context
+  - Create voice interaction panel with push-to-talk and continuous listening modes using internal `/api/v1/speech/transcribe` and `/api/v1/speech/synthesize` endpoints
+  - Add fallback text input option when voice doesn't work properly
+  - Integrate with vector search via `/api/v1/embeddings/search` endpoint for document-based context retrieval
+  - Connect to consultation service endpoints (`/api/v1/consultations`) for AI responses based on document context
+  - Implement real-time transcription display using ElevenLabs service endpoints (`/tts`, `/stt`, `/voices`)
+  - Create conversation history display below voice agent interface showing past document-based consultationsprolly just
+  - Write tests for voice functionality, document integration, and audio processing using Docker containers for speech service integration
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
 - [ ] 10. Build dashboard with overview and quick actions
