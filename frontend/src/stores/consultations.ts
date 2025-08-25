@@ -28,6 +28,7 @@ export interface Message {
   id: string;
   sessionId: string;
   type: 'user' | 'assistant' | 'system';
+  role?: 'user' | 'assistant' | 'system'; // Alternative field name for compatibility
   content: string;
   timestamp: Date;
   sources?: DocumentReference[];
@@ -38,6 +39,7 @@ export interface Message {
   inputMethod: 'text' | 'voice';
   isStreaming?: boolean;
   reactions?: MessageReaction[];
+  status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 }
 
 export interface DocumentReference {
@@ -85,16 +87,16 @@ interface ConsultationState {
   // Current session
   currentSession: ConsultationSession | null;
   currentMessages: Message[];
-  
+
   // Session management
   sessions: ConsultationSession[];
   filters: ConsultationFilters;
-  
+
   // Chat state
   isTyping: boolean;
   isConnected: boolean;
   connectionError: string | null;
-  
+
   // Voice state
   voiceSettings: VoiceSettings;
   isRecording: boolean;
@@ -103,7 +105,7 @@ interface ConsultationState {
   transcriptionActive: boolean;
   voicePanelOpen: boolean;
   listeningMode: 'push-to-talk' | 'continuous';
-  
+
   // UI state
   showSessionList: boolean;
   selectedMessageId: string | null;
@@ -117,18 +119,18 @@ interface ConsultationActions {
   removeSession: (id: string) => void;
   setFilters: (filters: Partial<ConsultationFilters>) => void;
   clearFilters: () => void;
-  
+
   // Message management
   addMessage: (message: Message) => void;
   updateMessage: (id: string, updates: Partial<Message>) => void;
   removeMessage: (id: string) => void;
   clearMessages: () => void;
   addMessageReaction: (messageId: string, reaction: MessageReaction) => void;
-  
+
   // Chat state
   setIsTyping: (typing: boolean) => void;
   setConnectionStatus: (connected: boolean, error?: string) => void;
-  
+
   // Voice actions
   setVoiceSettings: (settings: Partial<VoiceSettings>) => void;
   setIsRecording: (recording: boolean) => void;
@@ -137,7 +139,7 @@ interface ConsultationActions {
   setTranscriptionActive: (active: boolean) => void;
   setVoicePanelOpen: (open: boolean) => void;
   setListeningMode: (mode: 'push-to-talk' | 'continuous') => void;
-  
+
   // UI actions
   setShowSessionList: (show: boolean) => void;
   setSelectedMessageId: (id: string | null) => void;
@@ -180,7 +182,7 @@ export const useConsultationStore = create<ConsultationStore>()(
 
       // Session management
       setCurrentSession: (session: ConsultationSession | null) => {
-        set({ 
+        set({
           currentSession: session,
           currentMessages: [], // Clear messages when switching sessions
         });
@@ -251,9 +253,9 @@ export const useConsultationStore = create<ConsultationStore>()(
           currentMessages: state.currentMessages.map((message) =>
             message.id === messageId
               ? {
-                  ...message,
-                  reactions: [...(message.reactions || []), reaction],
-                }
+                ...message,
+                reactions: [...(message.reactions || []), reaction],
+              }
               : message
           ),
         }));
@@ -265,7 +267,7 @@ export const useConsultationStore = create<ConsultationStore>()(
       },
 
       setConnectionStatus: (connected: boolean, error?: string) => {
-        set({ 
+        set({
           isConnected: connected,
           connectionError: error || null,
         });

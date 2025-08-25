@@ -16,6 +16,7 @@ import (
 	"ai-government-consultant/internal/database"
 	"ai-government-consultant/internal/document"
 	"ai-government-consultant/internal/embedding"
+	"ai-government-consultant/internal/websocket"
 	"ai-government-consultant/pkg/logger"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,8 @@ type Server struct {
 	consultationService *consultation.Service
 	knowledgeService    api.KnowledgeServiceInterface
 	auditService        api.AuditServiceInterface
+	wsHub               *websocket.Hub
+	wsHandler           *websocket.Handler
 }
 
 // New creates a new server instance
@@ -181,6 +184,13 @@ func (s *Server) initializeServices() error {
 		return fmt.Errorf("failed to initialize consultation service: %w", err)
 	}
 
+	// Initialize WebSocket hub and handler
+	s.wsHub = websocket.NewHub()
+	s.wsHandler = websocket.NewHandler(s.wsHub, s.authService)
+
+	// Start WebSocket hub in a goroutine
+	go s.wsHub.Run()
+
 	s.logger.Info("All services initialized successfully", nil)
 	return nil
 }
@@ -195,6 +205,29 @@ func (s *Server) setupRoutes() {
 		"https://localhost:8080",
 	}
 
+	// Setup WebSocket route with minimal middleware
+	wsGroup := s.router.Group("/")
+	wsGroup.Use(func(c *gin.Context) {
+		// Add CORS headers for WebSocket
+		origin := c.GetHeader("Origin")
+		for _, allowed := range allowedOrigins {
+			if origin == allowed {
+				c.Header("Access-Control-Allow-Origin", origin)
+				c.Header("Access-Control-Allow-Credentials", "true")
+				break
+			}
+		}
+		c.Next()
+	})
+	
+	// Add a test endpoint to verify routing works
+	wsGroup.GET("/ws-test", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "WebSocket routing works"})
+	})
+	
+	wsGroup.GET("/ws", s.wsHandler.HandleWebSocket)
+	s.logger.Info("WebSocket route registered at /ws", nil)
+
 	// Setup API routes
 	routerConfig := &api.RouterConfig{
 		AuthService:         s.authService,
@@ -208,5 +241,5 @@ func (s *Server) setupRoutes() {
 
 	api.SetupRoutes(s.router, routerConfig)
 
-	s.logger.Info("API routes configured successfully", nil)
+	s.logger.Info("API routes and WebSocket configured successfully", nil)
 }

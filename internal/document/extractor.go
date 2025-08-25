@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"ai-government-consultant/internal/models"
 )
@@ -30,6 +31,11 @@ func (s *Service) extractText(doc *models.Document) (string, error) {
 func (s *Service) extractTextFromTXT(content string) (string, error) {
 	// For plain text files, just clean up the content
 	cleaned := strings.TrimSpace(content)
+
+	// Ensure the content is valid UTF-8
+	if !utf8.ValidString(cleaned) {
+		cleaned = strings.ToValidUTF8(cleaned, "�")
+	}
 
 	// Remove excessive whitespace
 	re := regexp.MustCompile(`\s+`)

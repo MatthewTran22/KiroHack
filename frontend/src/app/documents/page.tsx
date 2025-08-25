@@ -67,7 +67,7 @@ export default function DocumentsPage() {
   const handleSort = (field: string, direction: 'asc' | 'desc') => {
     setSortField(field);
     setSortDirection(direction);
-    
+
     // Sort documents locally for now
     // In a real app, this would be handled by the API
   };
@@ -108,7 +108,7 @@ export default function DocumentsPage() {
   const handleBulkDelete = async () => {
     if (confirm(`Are you sure you want to delete ${selectedDocuments.length} document(s)?`)) {
       try {
-        await deleteDocuments(selectedDocuments);
+        deleteSelectedDocuments(selectedDocuments);
         clearSelection();
       } catch (error) {
         console.error('Bulk delete failed:', error);
@@ -119,7 +119,7 @@ export default function DocumentsPage() {
   const handleUploadComplete = (uploadedDocuments: Document[]) => {
     setShowUploadModal(false);
     // Refresh documents list
-    loadDocuments(filters);
+    refetch();
   };
 
   const handleUploadError = (error: string) => {
@@ -130,23 +130,23 @@ export default function DocumentsPage() {
   // Sort documents
   const sortedDocuments = React.useMemo(() => {
     if (!documents) return [];
-    
+
     return [...documents].sort((a, b) => {
       let aValue: any = a[sortField as keyof Document];
       let bValue: any = b[sortField as keyof Document];
-      
+
       // Handle date sorting
       if (sortField === 'uploadedAt') {
         aValue = new Date(aValue).getTime();
         bValue = new Date(bValue).getTime();
       }
-      
+
       // Handle string sorting
       if (typeof aValue === 'string') {
         aValue = aValue.toLowerCase();
         bValue = bValue.toLowerCase();
       }
-      
+
       if (sortDirection === 'asc') {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
@@ -264,7 +264,7 @@ export default function DocumentsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => loadDocuments(filters)}>
+                  <DropdownMenuItem onClick={() => refetch()}>
                     Refresh
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={clearSelection}>
@@ -315,7 +315,7 @@ export default function DocumentsPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => loadDocuments(filters)}
+                  onClick={() => refetch()}
                   className="mt-2"
                 >
                   Retry

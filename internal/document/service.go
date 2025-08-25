@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"ai-government-consultant/internal/models"
 
@@ -124,11 +125,14 @@ func (s *Service) UploadDocument(file *multipart.FileHeader, metadata models.Doc
 		return nil, fmt.Errorf("failed to read file content: %w", err)
 	}
 
+	// Convert content to string with UTF-8 validation and cleaning
+	contentStr := s.sanitizeUTF8Content(content)
+
 	// Create document model
 	doc := &models.Document{
 		ID:               primitive.NewObjectID(),
 		Name:             file.Filename,
-		Content:          string(content), // For now, store as string - will be processed later
+		Content:          contentStr,
 		ContentType:      file.Header.Get("Content-Type"),
 		Size:             file.Size,
 		UploadedBy:       uploadedBy,
@@ -321,4 +325,33 @@ func (s *Service) updateProcessingStatus(documentID primitive.ObjectID, status m
 	}
 
 	s.collection.UpdateOne(ctx, bson.M{"_id": documentID}, update)
+}
+
+// sanitizeUTF8Content converts byte content to a valid UTF-8 string
+func (s *Service) sanitizeUTF8Content(content []byte) string {
+	// First, try to convert directly to string
+	str := string(content)
+	
+	// Check if the string is valid UTF-8
+	if utf8.ValidString(str) {
+		return str
+	}
+	
+	// If not valid UTF-8, clean it up
+	// This will replace invalid UTF-8 sequences with the replacement character
+	validStr := strings.ToValidUTF8(str, "�")
+	
+	// Additional cleaning: remove null bytes and other problematic characters
+	validStr = strings.ReplaceAll(validStr, "\x00", "")
+	
+	// Remove other control characters except common whitespace
+	var cleaned strings.Builder
+	for _, r := range validStr {
+		// Keep printable characters and common whitespace (space, tab, newline, carriage return)
+		if r >= 32 || r == '\t' || r == '\n' || r == '\r' {
+			cleaned.WriteRune(r)
+		}
+	}
+	
+	return cleaned.String()
 }

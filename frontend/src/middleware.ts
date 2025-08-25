@@ -39,13 +39,13 @@ function getTokenPayload(token: string): TokenPayload | null {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  
+
   // Get API URL for CSP
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
-  
+
   // Get token from cookie or header
   let token = request.cookies.get(TOKEN_STORAGE_KEY)?.value;
-  
+
   // If not in cookie, check Authorization header
   if (!token) {
     const authHeader = request.headers.get('authorization');
@@ -60,7 +60,7 @@ export function middleware(request: NextRequest) {
   // Temporarily disable middleware redirects to stop the loop
   // We'll handle authentication purely client-side for now
   // TODO: Re-enable this once we fix the token sync between client and server
-  
+
   /*
   // Handle protected routes
   if (protectedRoutes.some(route => pathname.startsWith(route))) {
@@ -86,7 +86,7 @@ export function middleware(request: NextRequest) {
 
   // Add security headers
   const response = NextResponse.next();
-  
+
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');

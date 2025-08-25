@@ -37,23 +37,25 @@ export function useAuth() {
 
   // Auto-refresh token when needed
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !tokenManager.getRefreshToken()) return;
 
     const checkTokenRefresh = async () => {
-      if (tokenManager.shouldRefreshToken()) {
+      if (tokenManager.shouldRefreshToken() && tokenManager.getRefreshToken()) {
         try {
           await refreshToken();
         } catch (error) {
           console.error('Token refresh failed:', error);
+          // If refresh fails, logout the user
+          logout();
         }
       }
     };
 
     // Check every minute
     const interval = setInterval(checkTokenRefresh, 60 * 1000);
-    
+
     return () => clearInterval(interval);
-  }, [isAuthenticated, refreshToken]);
+  }, [isAuthenticated, refreshToken, logout]);
 
   return {
     user,

@@ -8,6 +8,7 @@ import { Shield, User, MessageSquare, FileText, History, TrendingUp } from 'luci
 import { useRouter } from 'next/navigation';
 import { tokenManager } from '@/lib/auth';
 import { ROUTES } from '@/lib/constants';
+import { AuthDebug } from '@/components/debug/auth-debug';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -90,6 +91,9 @@ export default function DashboardPage() {
         })}
       </div>
 
+      {/* Debug Component - Remove in production */}
+      <AuthDebug />
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {/* User Info Card */}
         <Card>
@@ -131,11 +135,10 @@ export default function DashboardPage() {
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
               <span>Two-Factor Authentication</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                user?.mfa_enabled 
-                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                  : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
-              }`}>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${user?.mfa_enabled
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+                : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+                }`}>
                 {user?.mfa_enabled ? 'Enabled' : 'Disabled'}
               </span>
             </div>
@@ -156,24 +159,24 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={() => router.push('/consultation')}
             >
               <MessageSquare className="h-4 w-4 mr-2" />
               New Consultation
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={() => router.push('/documents')}
             >
               <FileText className="h-4 w-4 mr-2" />
               Upload Documents
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="w-full justify-start"
               onClick={() => router.push('/history')}
             >

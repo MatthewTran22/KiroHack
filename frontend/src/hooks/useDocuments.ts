@@ -10,7 +10,7 @@ import type { DocumentFilters, DocumentSortOption } from '@/stores/documents';
 const documentsAPI = {
   async getDocuments(filters?: DocumentFilters, sort?: DocumentSortOption): Promise<PaginatedResponse<Document>> {
     const params = new URLSearchParams();
-    
+
     if (filters?.searchQuery) params.append('search', filters.searchQuery);
     if (filters?.category) params.append('category', filters.category);
     if (filters?.classification) params.append('classification', filters.classification);
@@ -26,7 +26,11 @@ const documentsAPI = {
     }
 
     const token = tokenManager.getToken();
-    const response = await fetch(`http://localhost:8080/api/v1/documents?${params.toString()}`, {
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents?${params.toString()}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -42,7 +46,11 @@ const documentsAPI = {
 
   async getDocument(id: string): Promise<Document> {
     const token = tokenManager.getToken();
-    const response = await fetch(`http://localhost:8080/api/v1/documents/${id}`, {
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents/${id}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -57,34 +65,80 @@ const documentsAPI = {
   },
 
   async uploadDocuments(files: File[], metadata: Record<string, unknown>[]): Promise<Document[]> {
-    const formData = new FormData();
-    
-    files.forEach((file, index) => {
-      formData.append(`files`, file);
-      formData.append(`metadata_${index}`, JSON.stringify(metadata[index] || {}));
-    });
-
-    const response = await fetch('/api/documents/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to upload documents');
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
     }
 
-    return response.json();
+    // The backend only supports single file upload, so we need to upload files one by one
+    const uploadedDocuments: Document[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const meta = metadata[i] || {};
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Add metadata fields as expected by backend
+      if (meta.title) formData.append('title', String(meta.title));
+      if (meta.author) formData.append('author', String(meta.author));
+      if (meta.department) formData.append('department', String(meta.department));
+      if (meta.category) formData.append('category', String(meta.category));
+      if (meta.language) formData.append('language', String(meta.language));
+
+      // Handle tags - backend expects comma-separated string
+      if (meta.tags && Array.isArray(meta.tags)) {
+        formData.append('tags', meta.tags.join(','));
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to upload document ${file.name}: ${errorText}`);
+      }
+
+      const result = await response.json();
+
+      // Convert backend response to frontend Document format
+      if (result.data && result.data.document_id) {
+        uploadedDocuments.push({
+          id: result.data.document_id,
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          uploadedAt: new Date(),
+          status: result.data.status || 'uploaded',
+          // Add other required Document fields with defaults
+          category: String(meta.category || 'general'),
+          classification: 'internal',
+          tags: Array.isArray(meta.tags) ? meta.tags : [],
+          metadata: meta,
+        } as Document);
+      }
+    }
+
+    return uploadedDocuments;
   },
 
   async updateDocument(id: string, updates: Partial<Document>): Promise<Document> {
-    const response = await fetch(`/api/documents/${id}`, {
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
       },
       body: JSON.stringify(updates),
     });
@@ -97,10 +151,15 @@ const documentsAPI = {
   },
 
   async deleteDocument(id: string): Promise<void> {
-    const response = await fetch(`/api/documents/${id}`, {
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents/${id}`, {
       method: 'DELETE',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
       },
     });
 
@@ -110,25 +169,39 @@ const documentsAPI = {
   },
 
   async deleteDocuments(ids: string[]): Promise<void> {
-    const response = await fetch('/api/documents/batch', {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ ids }),
-    });
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
 
-    if (!response.ok) {
-      throw new Error('Failed to delete documents');
+    // Backend doesn't have a batch delete endpoint, so delete one by one
+    for (const id of ids) {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete document ${id}`);
+      }
     }
   },
 
   async searchDocuments(query: string): Promise<Document[]> {
-    const response = await fetch(`/api/documents/search?q=${encodeURIComponent(query)}`, {
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/documents/search`, {
+      method: 'POST',
       headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
       },
+      body: JSON.stringify({ query }),
     });
 
     if (!response.ok) {
@@ -142,7 +215,7 @@ const documentsAPI = {
 // Hook for fetching documents with filters and sorting
 export function useDocuments() {
   const { filters, sortBy } = useDocumentStore();
-  
+
   return useQuery({
     queryKey: queryKeys.documents.list({ filters, sortBy }),
     queryFn: () => documentsAPI.getDocuments(filters, sortBy),
@@ -198,7 +271,7 @@ export function useUploadDocuments() {
 
       // Invalidate and refetch documents list
       queryClient.invalidateQueries({ queryKey: queryKeys.documents.lists() });
-      
+
       // Optimistically add documents to cache
       queryClient.setQueryData(
         queryKeys.documents.lists(),
@@ -294,7 +367,7 @@ export function useDeleteDocuments() {
     mutationFn: (ids?: string[]) => documentsAPI.deleteDocuments(ids || selectedDocuments),
     onSuccess: (_, deletedIds) => {
       const idsToDelete = deletedIds || selectedDocuments;
-      
+
       // Remove from cache
       idsToDelete.forEach((id) => {
         queryClient.removeQueries({ queryKey: queryKeys.documents.detail(id) });

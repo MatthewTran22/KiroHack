@@ -2,223 +2,145 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-client';
 import { useConsultationStore } from '@/stores/consultations';
 import { PaginatedResponse } from '@/types';
-import type { 
-  ConsultationSession, 
-  Message, 
+import { apiClient } from '@/lib/api';
+import { tokenManager } from '@/lib/auth';
+import type {
+  ConsultationSession,
+  Message,
   ConsultationFilters,
-  VoiceSettings 
+  VoiceSettings
 } from '@/stores/consultations';
 
 // Extended API client for consultations
 const consultationsAPI = {
   async getSessions(filters?: ConsultationFilters): Promise<PaginatedResponse<ConsultationSession>> {
-    const params = new URLSearchParams();
-    
-    if (filters?.searchQuery) params.append('search', filters.searchQuery);
-    if (filters?.type) params.append('type', filters.type);
-    if (filters?.status) params.append('status', filters.status);
-    if (filters?.tags?.length) params.append('tags', filters.tags.join(','));
-    if (filters?.dateRange) {
-      params.append('startDate', filters.dateRange.start.toISOString());
-      params.append('endDate', filters.dateRange.end.toISOString());
-    }
+    // For now, return the proper API client call, but we need to map the filters to the backend format
+    const consultationFilters = filters ? {
+      searchQuery: filters.searchQuery,
+      type: filters.type,
+      status: filters.status,
+      tags: filters.tags,
+      dateRange: filters.dateRange,
+    } : undefined;
 
-    const response = await fetch(`/api/consultations?${params.toString()}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch consultation sessions');
-    }
-
-    return response.json();
+    return apiClient.consultations.getSessions(consultationFilters);
   },
 
   async getSession(id: string): Promise<ConsultationSession> {
-    const response = await fetch(`/api/consultations/${id}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch consultation session');
-    }
-
-    return response.json();
+    return apiClient.consultations.getSession(id);
   },
 
   async createSession(data: { type: string; title?: string; context?: string }): Promise<ConsultationSession> {
-    const response = await fetch('/api/consultations', {
+    // Map the data to the backend format that matches CreateConsultationRequest
+    const backendRequest = {
+      query: data.title || `New ${data.type} consultation`,
+      type: data.type,
+      context: data.context ? {
+        userContext: { description: data.context },
+        relatedDocuments: [],
+        previousSessions: [],
+        systemContext: {}
+      } : undefined,
+      maxSources: 10,
+      confidenceThreshold: 0.7,
+      tags: [],
+      isMultiTurn: false
+    };
+
+    // Since apiClient.consultations.createSession expects ConsultationRequest from frontend types,
+    // but the backend actually expects CreateConsultationRequest, we need to make a direct call
+    const token = tokenManager.getToken();
+    if (!token) {
+      throw new Error('No authentication token available');
+    }
+
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/v1/consultations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify(backendRequest),
     });
 
     if (!response.ok) {
       throw new Error('Failed to create consultation session');
     }
 
-    return response.json();
+    const result = await response.json();
+
+    // Map the backend response to frontend ConsultationSession format
+    if (result.data && result.data.session) {
+      const session = result.data.session;
+      return {
+        id: session.id || session._id,
+        title: session.query || data.title || `${data.type} consultation`,
+        type: session.type,
+        status: session.status || 'completed',
+        createdAt: new Date(session.created_at || new Date()),
+        updatedAt: new Date(session.updated_at || new Date()),
+        userId: session.user_id || session.userId,
+        messages: [],
+        context: data.context,
+        priority: 'medium',
+      };
+    }
+
+    throw new Error('Invalid response format from server');
   },
 
   async updateSession(id: string, updates: Partial<ConsultationSession>): Promise<ConsultationSession> {
-    const response = await fetch(`/api/consultations/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify(updates),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to update consultation session');
-    }
-
-    return response.json();
+    return apiClient.consultations.updateSession(id, updates);
   },
 
   async deleteSession(id: string): Promise<void> {
-    const response = await fetch(`/api/consultations/${id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to delete consultation session');
-    }
+    return apiClient.consultations.deleteSession(id);
   },
 
   async getMessages(sessionId: string): Promise<Message[]> {
-    const response = await fetch(`/api/consultations/${sessionId}/messages`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch messages');
-    }
-
-    return response.json();
+    // The backend doesn't have separate message endpoints yet
+    // For now, return empty array or get from session data
+    return apiClient.consultations.getMessages(sessionId);
   },
 
   async sendMessage(sessionId: string, content: string, inputMethod: 'text' | 'voice' = 'text'): Promise<Message> {
-    const response = await fetch(`/api/consultations/${sessionId}/messages`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ content, inputMethod }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send message');
-    }
-
-    return response.json();
+    // The backend uses continue consultation for additional messages
+    const messageRequest = {
+      content,
+      inputMethod,
+    };
+    return apiClient.consultations.sendMessage(sessionId, messageRequest);
   },
 
   async sendVoiceMessage(sessionId: string, audioBlob: Blob): Promise<Message> {
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'voice-message.webm');
-
-    const response = await fetch(`/api/consultations/${sessionId}/voice`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to send voice message');
-    }
-
-    return response.json();
+    // Voice messages not implemented in backend yet
+    throw new Error('Voice messages are not yet implemented');
   },
 
   async transcribeAudio(audioBlob: Blob, options?: { language?: string }): Promise<{ text: string; confidence: number }> {
-    const formData = new FormData();
-    formData.append('audio', audioBlob, 'audio.webm');
-    if (options?.language) {
-      formData.append('language', options.language);
-    }
-
-    const response = await fetch('/api/speech/transcribe', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to transcribe audio');
-    }
-
-    return response.json();
+    // Audio transcription not implemented in backend yet
+    throw new Error('Audio transcription is not yet implemented');
   },
 
   async synthesizeSpeech(text: string, options?: { voice?: string; rate?: number }): Promise<Blob> {
-    const response = await fetch('/api/speech/synthesize', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-      body: JSON.stringify({ text, ...options }),
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to synthesize speech');
-    }
-
-    return response.blob();
+    // Speech synthesis not implemented in backend yet
+    throw new Error('Speech synthesis is not yet implemented');
   },
 
   async getAvailableVoices(): Promise<{ id: string; name: string; language: string }[]> {
-    const response = await fetch('/api/speech/voices', {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch available voices');
-    }
-
-    return response.json();
+    // Voice functionality not implemented in backend yet
+    return [];
   },
 
   async exportSession(sessionId: string, format: 'pdf' | 'docx' | 'txt' = 'pdf'): Promise<Blob> {
-    const response = await fetch(`/api/consultations/${sessionId}/export?format=${format}`, {
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to export session');
-    }
-
-    return response.blob();
+    return apiClient.consultations.exportSession(sessionId, format);
   },
 };
 
 // Hook for fetching consultation sessions
 export function useConsultationSessions() {
   const { filters } = useConsultationStore();
-  
+
   return useQuery({
     queryKey: queryKeys.consultations.list(filters),
     queryFn: () => consultationsAPI.getSessions(filters),
@@ -344,10 +266,10 @@ export function useSendMessage() {
   const { addMessage, currentSession } = useConsultationStore();
 
   return useMutation({
-    mutationFn: ({ sessionId, content, inputMethod }: { 
-      sessionId: string; 
-      content: string; 
-      inputMethod?: 'text' | 'voice' 
+    mutationFn: ({ sessionId, content, inputMethod }: {
+      sessionId: string;
+      content: string;
+      inputMethod?: 'text' | 'voice'
     }) => consultationsAPI.sendMessage(sessionId, content, inputMethod),
     onMutate: async ({ sessionId, content, inputMethod = 'text' }) => {
       // Cancel outgoing refetches
@@ -379,8 +301,8 @@ export function useSendMessage() {
       // Replace optimistic message with real one
       queryClient.setQueryData(
         queryKeys.consultations.messages(variables.sessionId),
-        (old: Message[] | undefined) => 
-          (old || []).map((msg) => 
+        (old: Message[] | undefined) =>
+          (old || []).map((msg) =>
             msg.id === context?.optimisticMessage.id ? newMessage : msg
           )
       );
@@ -418,9 +340,9 @@ export function useSendVoiceMessage() {
 // Hook for audio transcription
 export function useTranscribeAudio() {
   return useMutation({
-    mutationFn: ({ audioBlob, options }: { 
-      audioBlob: Blob; 
-      options?: { language?: string } 
+    mutationFn: ({ audioBlob, options }: {
+      audioBlob: Blob;
+      options?: { language?: string }
     }) => consultationsAPI.transcribeAudio(audioBlob, options),
   });
 }
@@ -428,9 +350,9 @@ export function useTranscribeAudio() {
 // Hook for text-to-speech synthesis
 export function useSynthesizeSpeech() {
   return useMutation({
-    mutationFn: ({ text, options }: { 
-      text: string; 
-      options?: { voice?: string; rate?: number } 
+    mutationFn: ({ text, options }: {
+      text: string;
+      options?: { voice?: string; rate?: number }
     }) => consultationsAPI.synthesizeSpeech(text, options),
   });
 }
